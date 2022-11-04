@@ -39,7 +39,7 @@ class DatadogSpan {
     // This is necessary for span count metrics.
     this._name = operationName
 
-    this._spanContext = this._createContext(parent, fields)
+    this._spanContext = fields.context || this._createContext(parent, fields)
     this._spanContext._name = operationName
     this._spanContext._tags = tags
     this._spanContext._hostname = hostname
