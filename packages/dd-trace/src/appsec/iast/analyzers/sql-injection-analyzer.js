@@ -10,9 +10,6 @@ const { createVulnerability, addVulnerability } = require('../vulnerability-repo
 class SqlInjectionAnalyzer extends InjectionAnalyzer {
   constructor () {
     super(SQL_INJECTION)
-    this.addSub('apm:mysql:query:start', ({ sql }) => this.analyze(sql, 'MYSQL'))
-    this.addSub('apm:mysql2:query:start', ({ sql }) => this.analyze(sql, 'MYSQL'))
-    this.addSub('apm:pg:query:start', ({ query }) => this.analyze(query.text, 'POSTGRES'))
   }
 
   _getEvidence (value, iastContext, dialect) {
@@ -43,6 +40,21 @@ class SqlInjectionAnalyzer extends InjectionAnalyzer {
       const vulnerability = createVulnerability(this._type, evidence, spanId, location)
       addVulnerability(context, vulnerability)
     }
+  }
+
+  onConfigure () {
+    this.addSub(
+      { channelName: 'apm:mysql:query:start' },
+      ({ sql }) => this.analyze(sql, 'MYSQL')
+    )
+    this.addSub(
+      { channelName: 'apm:mysql2:query:start' },
+      ({ sql }) => this.analyze(sql, 'MYSQL')
+    )
+    this.addSub(
+      { channelName: 'apm:pg:query:start' },
+      ({ query }) => this.analyze(query.text, 'POSTGRES')
+    )
   }
 }
 

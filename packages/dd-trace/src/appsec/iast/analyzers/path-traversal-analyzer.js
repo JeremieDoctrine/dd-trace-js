@@ -1,15 +1,32 @@
 'use strict'
 
 const path = require('path')
+
+const InjectionAnalyzer = require('./injection-analyzer')
 const { getIastContext } = require('../iast-context')
 const { storage } = require('../../../../../datadog-core')
-const InjectionAnalyzer = require('./injection-analyzer')
 const { PATH_TRAVERSAL } = require('../vulnerabilities')
 
 class PathTraversalAnalyzer extends InjectionAnalyzer {
   constructor () {
     super(PATH_TRAVERSAL)
-    this.addSub('apm:fs:operation:start', obj => {
+
+    this.exclusionList = [
+      path.join('node_modules', 'send') + path.sep
+    ]
+
+    this.internalExclusionList = [
+      'node:fs',
+      'node:internal/fs',
+      'node:internal\\fs',
+      'fs.js',
+      'internal/fs',
+      'internal\\fs'
+    ]
+  }
+
+  onConfigure () {
+    this.addSub({ channelName: 'apm:fs:operation:start' }, (obj) => {
       const pathArguments = []
       if (obj.dest) {
         pathArguments.push(obj.dest)
@@ -40,19 +57,6 @@ class PathTraversalAnalyzer extends InjectionAnalyzer {
       }
       this.analyze(pathArguments)
     })
-
-    this.exclusionList = [
-      path.join('node_modules', 'send') + path.sep
-    ]
-
-    this.internalExclusionList = [
-      'node:fs',
-      'node:internal/fs',
-      'node:internal\\fs',
-      'fs.js',
-      'internal/fs',
-      'internal\\fs'
-    ]
   }
 
   _isExcluded (location) {
