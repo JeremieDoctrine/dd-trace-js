@@ -60,17 +60,19 @@ class AgentExporter {
   export ({ profiles, start, end, tags }) {
     const types = Object.keys(profiles)
 
+    const runtime = "nodejs"
+
     const fields = [
       ['recording-start', start.toISOString()],
       ['recording-end', end.toISOString()],
       ['language', 'javascript'],
-      ['runtime', 'nodejs'],
+      ['runtime', runtime],
       ['runtime_version', process.version],
       ['profiler_version', version],
       ['format', 'pprof'],
 
       ['tags[]', 'language:javascript'],
-      ['tags[]', 'runtime:nodejs'],
+      ['tags[]', `runtime:${runtime}`],
       ['tags[]', `runtime_version:${process.version}`],
       ['tags[]', `profiler_version:${version}`],
       ['tags[]', 'format:pprof'],

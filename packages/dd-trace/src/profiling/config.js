@@ -10,6 +10,7 @@ const { ConsoleLogger } = require('./loggers/console')
 const CpuProfiler = require('./profilers/cpu')
 const WallProfiler = require('./profilers/wall')
 const SpaceProfiler = require('./profilers/space')
+const TimelineProfiler = require('./profilers/timeline')
 const { oomExportStrategies, snapshotKinds } = require('./constants')
 const { tagger } = require('./tagger')
 const { isTrue } = require('../util')
@@ -173,6 +174,8 @@ function getProfiler (name, options) {
       return new SpaceProfiler(options)
     case 'cpu-experimental':
       return new CpuProfiler(options)
+    case 'timeline-experimental':
+      return new TimelineProfiler(options)
     default:
       options.logger.error(`Unknown profiler "${name}"`)
   }
