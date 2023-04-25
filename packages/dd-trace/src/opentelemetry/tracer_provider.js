@@ -2,6 +2,8 @@
 
 const { trace, context } = require('@opentelemetry/api')
 
+const tracer = require('../../')
+
 const ContextManager = require('./context_manager')
 const { MultiSpanProcessor, NoopSpanProcessor } = require('./span_processor')
 const Tracer = require('./tracer')
@@ -53,6 +55,7 @@ class TracerProvider {
   }
 
   forceFlush () {
+    tracer._tracer._exporter._writer.flush()
     return this._activeProcessor.forceFlush()
   }
 

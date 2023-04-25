@@ -3,7 +3,7 @@
 const api = require('@opentelemetry/api')
 const { sanitizeAttributes } = require('@opentelemetry/core')
 
-const tracer = require('../../')
+// const tracer = require('../../')
 const Sampler = require('./sampler')
 const Span = require('./span')
 const id = require('../id')
@@ -115,16 +115,12 @@ class Tracer {
       return
     }
 
-    const ddScope = tracer.scope()
     const parentContext = context || api.context.active()
-
     const span = this.startSpan(name, options, parentContext)
     const contextWithSpanSet = api.trace.setSpan(parentContext, span)
 
     // TODO: This activate should _really_ be done in a custom context manager
-    return ddScope.activate(span._ddSpan, () => {
-      return api.context.with(contextWithSpanSet, fn, undefined, span)
-    })
+    return api.context.with(contextWithSpanSet, fn, undefined, span)
   }
 
   getActiveSpanProcessor () {
