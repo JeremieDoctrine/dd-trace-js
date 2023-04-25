@@ -10,14 +10,14 @@ class SchemaDefinition {
     }
   }
 
-  getOpName (type, kind, plugin, opNameArgs) {
+  getOpName (type, kind, plugin, ...opNameArgs) {
     const item = this.getSchemaItem(type, kind, plugin)
-    return item.opName(opNameArgs)
+    return item.opName(...opNameArgs)
   }
 
-  getServiceName (type, kind, plugin, serviceNameArgs) {
+  getServiceName (type, kind, plugin, ...serviceNameArgs) {
     const item = this.getSchemaItem(type, kind, plugin)
-    return item.serviceName(this.service, serviceNameArgs)
+    return item.serviceName(this.service, ...serviceNameArgs)
   }
 
   configure ({ service }) {
