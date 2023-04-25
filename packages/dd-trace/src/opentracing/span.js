@@ -44,6 +44,8 @@ class DatadogSpan {
     this._spanContext._tags = tags
     this._spanContext._hostname = hostname
 
+    this._spanContext._trace.started.push(this)
+
     this._startTime = fields.startTime || this._getTime()
 
     if (DD_TRACE_EXPERIMENTAL_SPAN_COUNTS && finishedRegistry) {
@@ -178,7 +180,6 @@ class DatadogSpan {
       }
     }
 
-    spanContext._trace.started.push(this)
     spanContext._trace.ticks = spanContext._trace.ticks || now()
 
     return spanContext
