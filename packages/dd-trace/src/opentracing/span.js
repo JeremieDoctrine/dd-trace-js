@@ -39,7 +39,7 @@ class DatadogSpan {
     // This is necessary for span count metrics.
     this._name = operationName
 
-    this._spanContext = fields.context || this._createContext(parent, fields)
+    this._spanContext = this._createContext(parent, fields)
     this._spanContext._name = operationName
     this._spanContext._tags = tags
     this._spanContext._hostname = hostname
@@ -149,8 +149,14 @@ class DatadogSpan {
 
   _createContext (parent, fields) {
     let spanContext
+    let startTime
 
-    if (parent) {
+    if (fields.context) {
+      spanContext = fields.context
+      if (!spanContext._trace.startTime) {
+        startTime = dateNow()
+      }
+    } else if (parent) {
       spanContext = new SpanContext({
         traceId: parent._traceId,
         spanId: id(),
@@ -162,11 +168,11 @@ class DatadogSpan {
       })
 
       if (!spanContext._trace.startTime) {
-        spanContext._trace.startTime = dateNow()
+        startTime = dateNow()
       }
     } else {
       const spanId = id()
-      const startTime = dateNow()
+      startTime = dateNow()
       spanContext = new SpanContext({
         traceId: spanId,
         spanId
@@ -181,6 +187,9 @@ class DatadogSpan {
     }
 
     spanContext._trace.ticks = spanContext._trace.ticks || now()
+    if (startTime) {
+      spanContext._trace.startTime = startTime
+    }
 
     return spanContext
   }

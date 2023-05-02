@@ -126,7 +126,10 @@ class Span {
       return
     }
 
-    const ddEndTime = adjustTime(toDDTime(endTime), this._ddSpan.context()._trace)
+    const hrEndTime = timeInputToHrTime(endTime || (otperformance.now() + getTimeOrigin()))
+    const millis = hrTimeToMilliseconds(hrEndTime)
+
+    const ddEndTime = adjustTime(millis, this._ddSpan.context()._trace)
     this._ddSpan.finish(ddEndTime)
     this._spanProcessor.onEnd(this)
   }
