@@ -43,8 +43,12 @@ class DefaultHandler {
   }
 
   drain () {
+    const result = []
     const points = this.combiner.drain()
-    return [new MetricData(this.metric, points)]
+    if (points && points.length) {
+      result.push(new MetricData(this.metric, points))
+    }
+    return result
   }
 
   merge (metricData) {

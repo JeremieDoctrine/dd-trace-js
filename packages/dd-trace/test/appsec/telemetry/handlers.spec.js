@@ -4,7 +4,7 @@ const { expect } = require('chai')
 const { DefaultHandler, TaggedHandler, DelegatingHandler, MetricData, aggregated, conflated, delegating } =
   require('../../../src/appsec/telemetry/handlers')
 const { Point, AggregatedCombiner, ConflatedCombiner } = require('../../../src/appsec/telemetry/combiners')
-const { EXECUTED_PROPAGATION, REQUEST_TAINTED } = require('../../../src/appsec/iast/iast-metric')
+const { REQUEST_TAINTED, EXECUTED_SINK } = require('../../../src/appsec/iast/iast-metric')
 const { Metric } = require('../../../src/appsec/telemetry/metric')
 
 function getCombiner (point) {
@@ -203,7 +203,7 @@ describe('Telemetry Handlers', () => {
 
   describe('handlers', () => {
     it('aggregated should return a TaggedHandler when invoked on a metric with tag', () => {
-      const handler = aggregated(EXECUTED_PROPAGATION)
+      const handler = aggregated(EXECUTED_SINK)
 
       expect(handler).to.not.be.undefined
       expect(handler).to.be.an.instanceOf(TaggedHandler)
@@ -219,7 +219,7 @@ describe('Telemetry Handlers', () => {
     })
 
     it('conflated should return a TaggedHandler when invoked on a metric with tag', () => {
-      const handler = conflated(EXECUTED_PROPAGATION)
+      const handler = conflated(EXECUTED_SINK)
 
       expect(handler).to.not.be.undefined
       expect(handler).to.be.an.instanceOf(TaggedHandler)

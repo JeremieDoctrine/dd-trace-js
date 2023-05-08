@@ -5,7 +5,7 @@ const proxyquire = require('proxyquire')
 const iastContextFunctions = require('../../../../src/appsec/iast/iast-context')
 const { getExpectedMethods } = require('../../../../src/appsec/iast/taint-tracking/csi-methods')
 const telemetry = require('../../../../src/appsec//telemetry')
-const { PropagationType, EXECUTED_PROPAGATION, REQUEST_TAINTED } = require('../../../../src/appsec/iast/iast-metric')
+const { EXECUTED_PROPAGATION, REQUEST_TAINTED } = require('../../../../src/appsec/iast/iast-metric')
 const { Verbosity } = require('../../../../src/appsec/telemetry/verbosity')
 
 describe('IAST TaintTracking Operations', () => {
@@ -251,11 +251,13 @@ describe('IAST TaintTracking Operations', () => {
   })
 
   describe('enableTaintTracking', () => {
+    let context
     beforeEach(() => {
+      context = { [taintTrackingOperations.IAST_TRANSACTION_ID]: 'id' }
       iastContextFunctions.saveIastContext(
         store,
         {},
-        { [taintTrackingOperations.IAST_TRANSACTION_ID]: 'id' }
+        context
       )
     })
 
@@ -296,7 +298,7 @@ describe('IAST TaintTracking Operations', () => {
       global._ddiast.plusOperator('helloworld', 'hello', 'world')
       expect(taintedUtils.concat).to.be.called
 
-      expect(executedPropagationIncrease).to.be.calledOnceWith(PropagationType.STRING)
+      expect(executedPropagationIncrease).to.be.calledOnceWith(null, context)
     })
   })
 

@@ -4,7 +4,7 @@ const TaintedUtils = require('@datadog/native-iast-taint-tracking')
 const { storage } = require('../../../../../datadog-core')
 const iastContextFunctions = require('../iast-context')
 const iastLog = require('../iast-log')
-const { PropagationType, EXECUTED_PROPAGATION } = require('../iast-metric')
+const { EXECUTED_PROPAGATION } = require('../iast-metric')
 
 function noop (res) { return res }
 // NOTE: methods of this object must be synchronized with csi-methods.js file definitions!
@@ -31,7 +31,7 @@ function getContextDefault () {
 
 function getContextDebug () {
   const iastContext = getContextDefault()
-  EXECUTED_PROPAGATION.increase(PropagationType.STRING, iastContext)
+  EXECUTED_PROPAGATION.increase(null, iastContext)
   return iastContext
 }
 

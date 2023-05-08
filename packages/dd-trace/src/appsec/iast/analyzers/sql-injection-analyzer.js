@@ -20,7 +20,7 @@ class SqlInjectionAnalyzer extends InjectionAnalyzer {
   analyze (value, dialect) {
     const store = storage.getStore()
     const iastContext = getIastContext(store)
-    if (store && !iastContext) return
+    if (this._isInvalidContext(store, iastContext)) return
     this._reportIfVulnerable(value, iastContext, dialect)
   }
 

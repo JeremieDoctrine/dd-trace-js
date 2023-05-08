@@ -25,7 +25,7 @@ function getInstrumentedMetric (metricTag) {
 }
 
 const INSTRUMENTED_PROPAGATION =
-  new Metric('instrumented.propagation', Scope.GLOBAL, MetricTag.PROPAGATION_TYPE, IAST_NAMESPACE)
+  new Metric('instrumented.propagation', Scope.GLOBAL, null, IAST_NAMESPACE)
 const INSTRUMENTED_SOURCE = new Metric('instrumented.source', Scope.GLOBAL, MetricTag.SOURCE_TYPE, IAST_NAMESPACE)
 const INSTRUMENTED_SINK = new Metric('instrumented.sink', Scope.GLOBAL, MetricTag.VULNERABILITY_TYPE, IAST_NAMESPACE)
 
@@ -36,7 +36,7 @@ const REQUEST_TAINTED = new Metric('request.tainted', Scope.REQUEST, null, IAST_
 
 // DEBUG using metrics
 const EXECUTED_PROPAGATION =
-  new Metric('executed.propagation', Scope.REQUEST, MetricTag.PROPAGATION_TYPE, IAST_NAMESPACE)
+  new Metric('executed.propagation', Scope.REQUEST, null, IAST_NAMESPACE)
 const EXECUTED_TAINTED = new Metric('executed.tainted', Scope.REQUEST, null, IAST_NAMESPACE)
 
 // DEBUG using log endpoint

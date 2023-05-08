@@ -205,8 +205,7 @@ describe('IAST TelemetryCollector', () => {
       expect(metricDataList[0].points.length).to.be.eq(2)
 
       metricDataList = handler.drain()
-      expect(metricDataList.length).to.be.eq(1)
-      expect(metricDataList[0].points.length).to.be.eq(0)
+      expect(metricDataList.length).to.be.eq(0)
     })
 
     it('should add any value to a conflated metric', () => {
