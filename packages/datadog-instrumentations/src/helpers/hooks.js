@@ -67,6 +67,7 @@ module.exports = {
   'net': () => require('../net'),
   'next': () => require('../next'),
   'oracledb': () => require('../oracledb'),
+  'openai': () => require('../openai'),
   'paperplane': () => require('../paperplane'),
   'pg': () => require('../pg'),
   'pino': () => require('../pino'),
