@@ -9,7 +9,7 @@ const { enableTaintTracking, disableTaintTracking, createTransaction, removeTran
 const telemetry = require('../telemetry')
 
 const IAST_ENABLED_TAG_KEY = '_dd.iast.enabled'
-const IAST_TRACE_METRIC_PREFIX = '_dd.instrumentation_telemetry_data.iast'
+const IAST_TRACE_METRIC_PREFIX = '_dd.iast.telemetry'
 
 // TODO Change to `apm:http:server:request:[start|close]` when the subscription
 //  order of the callbacks can be enforce
