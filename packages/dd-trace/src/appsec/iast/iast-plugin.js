@@ -8,6 +8,7 @@ const telemetry = require('../telemetry')
 const { getInstrumentedMetric, getExecutedMetric, MetricTag } = require('./iast-metric')
 const { storage } = require('../../../../datadog-core')
 const { getIastContext } = require('./iast-context')
+const instrumentations = require('../../../../datadog-instrumentations/src/helpers/instrumentations')
 
 /**
  * Used by vulnerability sources and sinks to subscribe diagnostic channel events
@@ -24,6 +25,16 @@ class IastPluginSubscription {
     this.channelName = channelName
     this.tag = tag
     this.metricTag = metricTag
+    this.executedMetric = getExecutedMetric(this.metricTag)
+    this.instrumentedMetric = getInstrumentedMetric(this.metricTag)
+  }
+
+  increaseInstrumented () {
+    this.instrumentedMetric.increase(this.tag)
+  }
+
+  increaseExecuted (iastContext) {
+    this.executedMetric.increase(this.tag, iastContext)
   }
 }
 
@@ -44,12 +55,11 @@ class IastPlugin extends Plugin {
     }
   }
 
-  _getTelemetryHandler (metric, tag) {
+  _getTelemetryHandler (iastSub) {
     return () => {
       try {
-        const store = storage.getStore()
-        const iastContext = getIastContext(store)
-        metric.increase(tag, iastContext)
+        const iastContext = getIastContext(storage.getStore())
+        iastSub.increaseExecuted(iastContext)
       } catch (e) {
         log.error(e)
       }
@@ -60,14 +70,12 @@ class IastPlugin extends Plugin {
     if (typeof iastSub === 'string') {
       super.addSub(iastSub, this._wrapHandler(handler))
     } else {
-      iastSub = this.getSubscription(iastSub)
+      iastSub = this.getAndRegisterSubscription(iastSub)
       if (iastSub) {
-        this.pluginSubs.push(iastSub)
-        const metric = getExecutedMetric(iastSub.metricTag)
         super.addSub(iastSub.channelName, this._wrapHandler(handler))
 
-        if (telemetry.isEnabled() && metric) {
-          super.addSub(iastSub.channelName, this._getTelemetryHandler(metric, iastSub.tag))
+        if (telemetry.isEnabled()) {
+          super.addSub(iastSub.channelName, this._getTelemetryHandler(iastSub))
         }
       }
     }
@@ -78,17 +86,21 @@ class IastPlugin extends Plugin {
   configure (config) {
     if (!this.configured) {
       this.onConfigure()
-
-      if (telemetry.isEnabled()) {
-        this.enableTelemetry()
-      }
       this.configured = true
+    }
+
+    if (telemetry.isEnabled()) {
+      if (config) {
+        this.enableTelemetry()
+      } else {
+        this.disableTelemetry()
+      }
     }
 
     super.configure(config)
   }
 
-  getSubscription ({ moduleName, channelName, tag, metricTag }) {
+  getAndRegisterSubscription ({ moduleName, channelName, tag, metricTag }) {
     if (!channelName) return
 
     if (!moduleName) {
@@ -100,31 +112,38 @@ class IastPlugin extends Plugin {
         moduleName = channelName.substring(firstSep + 1, lastSep !== -1 ? lastSep : channelName.length)
       }
     }
-    return new IastPluginSubscription(moduleName, channelName, tag, metricTag)
+    const iastSub = new IastPluginSubscription(moduleName, channelName, tag, metricTag)
+    this.pluginSubs.push(iastSub)
+    return iastSub
   }
 
   enableTelemetry () {
+    if (this.onInstrumentationLoadedListener) return
+
     this.onInstrumentationLoadedListener = ({ name }) => this.onInstrumentationLoaded(name)
     const loadChannel = channel('dd-trace:instrumentation:load')
     loadChannel.subscribe(this.onInstrumentationLoadedListener)
+
+    // check for already instrumented modules
+    for (const name in instrumentations) {
+      this.onInstrumentationLoaded(name)
+    }
   }
 
   disableTelemetry () {
-    if (this.onInstrumentationLoadedListener) {
-      const loadChannel = channel('dd-trace:instrumentation:load')
-      if (loadChannel.hasSubscribers) {
-        loadChannel.unsubscribe(this.onInstrumentationLoadedListener)
-      }
+    if (!this.onInstrumentationLoadedListener) return
+
+    const loadChannel = channel('dd-trace:instrumentation:load')
+    if (loadChannel.hasSubscribers) {
+      loadChannel.unsubscribe(this.onInstrumentationLoadedListener)
     }
+    this.onInstrumentationLoadedListener = null
   }
 
   onInstrumentationLoaded (name) {
     this.pluginSubs
       .filter(sub => sub.moduleName.includes(name))
-      .forEach(sub => {
-        const metric = getInstrumentedMetric(sub.metricTag)
-        metric.increase(sub.tag)
-      })
+      .forEach(sub => sub.increaseInstrumented())
   }
 }
 

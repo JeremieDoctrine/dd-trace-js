@@ -172,7 +172,8 @@ describe('IAST Plugin', () => {
         '../../log': {
           error: logError
         },
-        '../telemetry': telemetry
+        '../telemetry': telemetry,
+        '../../../../datadog-instrumentations/src/helpers/instrumentations': {}
       }).IastPlugin
 
       iastPlugin = new IastPlugin()
@@ -192,7 +193,7 @@ describe('IAST Plugin', () => {
 
         loadChannel.publish({ name: 'test' })
 
-        expect(onInstrumentationLoadedMock).to.be.calledOnceWith('test')
+        expect(onInstrumentationLoadedMock).to.be.calledWith('test')
       })
     })
 
@@ -205,14 +206,14 @@ describe('IAST Plugin', () => {
         iastPlugin.addSub({ channelName, metricTag: VULNERABILITY_TYPE }, handler)
 
         expect(wrapHandler).to.be.calledOnceWith(handler)
-        expect(getTelemetryHandler).to.be.calledOnceWith(getExecutedMetric(VULNERABILITY_TYPE), undefined)
+        expect(getTelemetryHandler).to.be.calledOnceWith(iastPlugin.pluginSubs[0])
 
         wrapHandler.reset()
         getTelemetryHandler.reset()
 
         iastPlugin.addSub({ channelName, metricTag: SOURCE_TYPE, tag: 'test-tag' }, handler)
         expect(wrapHandler).to.be.calledOnceWith(handler)
-        expect(getTelemetryHandler).to.be.calledOnceWith(getExecutedMetric(SOURCE_TYPE), 'test-tag')
+        expect(getTelemetryHandler).to.be.calledOnceWith(iastPlugin.pluginSubs[1])
       })
 
       it('should register an pluginSubscription and increment a sink metric when a sink module is loaded', () => {
