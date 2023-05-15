@@ -87,7 +87,7 @@ describe('Plugin', () => {
             .use(traces => {
               expect(traces[0][0]).to.have.property('name', 'openai.request')
               expect(traces[0][0]).to.have.property('type', 'openai')
-              expect(traces[0][0]).to.have.property('resource', 'createCompletion/text-davinci-002')
+              expect(traces[0][0]).to.have.property('resource', 'createCompletion')
               expect(traces[0][0]).to.have.property('error', 0)
 
               expect(traces[0][0].meta).to.have.property('component', 'openai')
@@ -144,7 +144,7 @@ describe('Plugin', () => {
             .use(traces => {
               expect(traces[0][0]).to.have.property('name', 'openai.request')
               expect(traces[0][0]).to.have.property('type', 'openai')
-              expect(traces[0][0]).to.have.property('resource', 'createEmbedding/text-embedding-ada-002')
+              expect(traces[0][0]).to.have.property('resource', 'createEmbedding')
               expect(traces[0][0]).to.have.property('error', 0)
 
               expect(traces[0][0].meta).to.have.property('openai.model', 'text-embedding-ada-002-v2')
@@ -162,6 +162,151 @@ describe('Plugin', () => {
           });
 
           expect(result.data.model).to.eql('text-embedding-ada-002-v2')
+
+          await checkTraces
+        })
+      })
+
+      describe('list models', () => {
+        let scope
+
+        before(() => {
+          scope = nock('https://api.openai.com:443', {"encodedQueryParams":true})
+          .get('/v1/models')
+          .reply(200, {
+            "object":"list",
+            "data":[
+              {
+                "id":"whisper-1",
+                "object":"model",
+                "created":1677532384,
+                "owned_by":"openai-internal",
+                "permission":[{
+                  "id":"modelperm-KlsZlfft3Gma8pI6A8rTnyjs",
+                  "object":"model_permission",
+                  "created":1683912666,
+                  "allow_create_engine":false,
+                  "allow_sampling":true,
+                  "allow_logprobs":true,
+                  "allow_search_indices":false,
+                  "allow_view":true,
+                  "allow_fine_tuning":false,
+                  "organization":"*",
+                  "group":null,
+                  "is_blocking":false
+                }],
+                "root":"whisper-1",
+                "parent":null
+              },
+              {
+                "id":"babbage",
+                "object":"model",
+                "created":1649358449,
+                "owned_by":"openai",
+                "permission":[{
+                  "id":"modelperm-49FUp5v084tBB49tC4z8LPH5",
+                  "object":"model_permission",
+                  "created":1669085501,
+                  "allow_create_engine":false,
+                  "allow_sampling":true,
+                  "allow_logprobs":true,
+                  "allow_search_indices":false,
+                  "allow_view":true,
+                  "allow_fine_tuning":false,
+                  "organization":"*",
+                  "group":null,
+                  "is_blocking":false
+                }],
+                "root":"babbage",
+                "parent":null
+              }
+            ]}, [
+            'Date', 'Mon, 15 May 2023 23:26:42 GMT',
+            'Content-Type', 'application/json',
+            'Content-Length', '63979',
+            'Connection', 'close',
+            'openai-version', '2020-10-01',
+            'openai-processing-ms', '164',
+          ])
+        })
+
+        after(() => {
+          nock.removeInterceptor(scope)
+          scope.done()
+        })
+
+        it('makes a successful call', async () => {
+          const checkTraces = agent
+            .use(traces => {
+              expect(traces[0][0]).to.have.property('name', 'openai.request')
+              expect(traces[0][0]).to.have.property('type', 'openai')
+              expect(traces[0][0]).to.have.property('resource', 'listModels')
+              expect(traces[0][0]).to.have.property('error', 0)
+            })
+
+          const result = await openai.listModels();
+
+          expect(result.data.object).to.eql('list')
+          expect(result.data.data.length).to.eql(2)
+
+          await checkTraces
+        })
+      })
+
+      describe('retrieve model', () => {
+        let scope
+
+        before(() => {
+          scope = nock('https://api.openai.com:443', {"encodedQueryParams":true})
+          .get('/v1/models/gpt-4')
+          .reply(200, {
+            "id":"gpt-4",
+            "object":"model",
+            "created":1678604602,
+            "owned_by":"openai",
+            "permission":[{
+              "id":"modelperm-ffiDrbtOGIZuczdJcFuOo2Mi",
+              "object":"model_permission",
+              "created":1684185078,
+              "allow_create_engine":false,
+              "allow_sampling":false,
+              "allow_logprobs":false,
+              "allow_search_indices":false,
+              "allow_view":false,
+              "allow_fine_tuning":false,
+              "organization":"*",
+              "group":null,
+              "is_blocking":false
+            }],
+            "root":"gpt-4",
+            "parent":null
+          }, [
+            'Date', 'Mon, 15 May 2023 23:41:40 GMT',
+            'Content-Type', 'application/json',
+            'Content-Length', '548',
+            'Connection', 'close',
+            'openai-version', '2020-10-01',
+            'openai-processing-ms', '27',
+          ])
+        })
+
+        after(() => {
+          nock.removeInterceptor(scope)
+          scope.done()
+        })
+
+        it('makes a successful call', async () => {
+          const checkTraces = agent
+            .use(traces => {
+              expect(traces[0][0]).to.have.property('name', 'openai.request')
+              expect(traces[0][0]).to.have.property('type', 'openai')
+              expect(traces[0][0]).to.have.property('resource', 'retrieveModel')
+              expect(traces[0][0]).to.have.property('error', 0)
+            })
+
+          const result = await openai.retrieveModel('gpt-4');
+
+          expect(result.data.id).to.eql('gpt-4')
 
           await checkTraces
         })
@@ -198,7 +343,7 @@ describe('Plugin', () => {
               .use(traces => {
                 expect(traces[0][0]).to.have.property('name', 'openai.request')
                 expect(traces[0][0]).to.have.property('type', 'openai')
-                expect(traces[0][0]).to.have.property('resource', 'createChatCompletion/gpt-3.5-turbo')
+                expect(traces[0][0]).to.have.property('resource', 'createChatCompletion')
                 expect(traces[0][0]).to.have.property('error', 0)
 
                 expect(traces[0][0].meta).to.have.property('openai.model', 'gpt-3.5-turbo-0301')

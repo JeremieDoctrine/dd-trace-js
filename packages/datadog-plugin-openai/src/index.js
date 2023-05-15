@@ -45,10 +45,12 @@ class OpenApiPlugin extends TracingPlugin {
 
   start ({ methodName, body, basePath, apiKey }) {
     body = body || {} // request body object is optional for some methods
-    const resource = body.model ? `${methodName}/${body.model}` : methodName
+    if (typeof body !== 'object') {
+      body = coerceBody(body, methodName)
+    }
     const span = this.startSpan('openai.request', {
       service: this.config.service,
-      resource,
+      resource: methodName,
       type: 'openai',
       kind: 'client',
       meta: {
@@ -199,6 +201,19 @@ function estimateTokenCount (str) {
   let est3 = [...str.matchAll(/[\w']+|[.,!?;]/g)].length * 0.75
 
   return Math.floor((est1 + est2 + est3) / 3)
+}
+
+/**
+ * Returns an object that makes sense for pulling metrics from
+ * Most methods tage an object as an argument. Some take other types.
+ */
+function coerceBody(arg, methodName) {
+  if (methodName === 'retrieveModel') {
+    return { model: arg }
+  }
+
+  // TODO: DO NOT MERGE THIS
+  throw new Error(`unable to coerce body for ${methodName}(${typeof(arg)})`)
 }
 
 module.exports = OpenApiPlugin
