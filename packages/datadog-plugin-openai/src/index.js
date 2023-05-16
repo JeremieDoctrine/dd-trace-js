@@ -46,7 +46,7 @@ class OpenApiPlugin extends TracingPlugin {
   start ({ methodName, body, basePath, apiKey }) {
     body = body || {} // request body object is optional for some methods
     if (typeof body !== 'object') {
-      body = coerceBody(body, methodName)
+      body = coerceRequestBody(body, methodName)
     }
     const span = this.startSpan('openai.request', {
       service: this.config.service,
@@ -55,7 +55,7 @@ class OpenApiPlugin extends TracingPlugin {
       kind: 'client',
       meta: {
         'openai.user.api_key': truncateApiKey(apiKey),
-        'openai.model': body.model, // the model the user thinks they're using
+        'openai.request.model': body.model, // the model the user thinks they're using
         // 'openai.operation': methodName, // proposed
         'openai.api_base': basePath,
 
@@ -70,17 +70,23 @@ class OpenApiPlugin extends TracingPlugin {
         'openai.request.stop': body.stop,
         'openai.request.presence_penalty': body.presence_penalty,
         'openai.request.best_of': body.best_of,
+        'openai.request.n': body.n, // common field, how many responses to include
+
+        'openai.request.size': body.size, // createImage, createImageEdit, createVariation
+        'openai.request.response_format': body.response_format, // createImage, createImageEdit, createVariation
       }
     })
 
     const tags = {}
 
+    // createChatCompletion
     if ('messages' in body) {
       for (let i = 0; i < body.messages.length; i++) {
         const message = body.messages[i]
         tags[`openai.request.${i}.content`] = message.content // TODO truncate?
         tags[`openai.request.${i}.role`] = message.role
-        // tags[`openai.request.${i}.name`] = message.name // TODO: present in API but not mentioned in spec
+        tags[`openai.request.${i}.name`] = message.name
+        tags[`openai.request.${i}.finish_reason`] = message.finish_reason
       }
     }
 
@@ -109,46 +115,122 @@ class OpenApiPlugin extends TracingPlugin {
     span.addTags(tags)
   }
 
-  finish ({ headers, body }) {
+  finish ({ headers, body, method, path }) {
     const span = this.activeSpan
+    const methodName = span._spanContext._tags['resource.name']
+    if (typeof body !== 'object') {
+      body = coerceResponseBody(body, methodName)
+    }
+    const tags = {
+      // technically we should know these ahead of time however we extract them after the request completes
+      'openai.request.endpoint': path, // TODO: Should this be /v1/foo or /foo?
+      'openai.request.method': method,
 
-    span.addTags({
       'openai.organization.name': headers['openai-organization'],
-      'openai.model': headers['openai-model'] || body.model,
-    })
+      'openai.response.model': headers['openai-model'] || body.model, // often undefined
+
+      'openai.response.create': body.created // common creation value, numeric epoch
+    }
+
 
     if ('usage' in body) {
       const usage = body.usage
-      span.addTags({
-        'openai.response.usage.prompt_tokens': usage.prompt_tokens,
-        'openai.response.usage.completion_tokens': usage.completion_tokens,
-        'openai.response.usage.total_tokens': usage.total_tokens,
-      })
+      tags['openai.response.usage.prompt_tokens'] = usage.prompt_tokens
+      tags['openai.response.usage.completion_tokens'] = usage.completion_tokens
+      tags['openai.response.usage.total_tokens'] = usage.total_tokens
     }
 
-    if ('choices' in body) {
-      for (let i = 0; i < body.choices.length; i++) {
-        const choice = body.choices[i]
-        span.addTags({
-          [`openai.response.choices.${i}.finish_reason`]: choice.finish_reason,
-          [`openai.response.choices.${i}.logprobs`]: 'logprobs' in choice && 'returned',
-          [`openai.response.choices.${i}.text`]: truncateText(choice.text) // TODO: truncate?
-        })
-
-        if ('message' in choice) {
-          const message = choice.message
-          span.addTags({
-            [`openai.response.choices.${i}.message.role`]: message.role,
-            [`openai.response.choices.${i}.message.content`]: truncateText(message.content) // TODO: truncate?
-          })
-        }
-      }
+    switch (methodName) {
+      case "createModeration":
+        createModerationExtraction(tags, body)
+        break
+      case "createCompletion":
+      case "createChatCompletion":
+      case "createEdit":
+        commonCreateExtraction(tags, body)
+        break
+      case 'listFiles':
+        listFilesExtraction(tags, body)
+        break
+      case 'createEmbedding':
+        createEmbeddingExtraction(tags, body)
+        break
+      case 'createFile':
+      case 'retrieveFile':
+        createRetrieveFileExtraction(tags, body)
+        break
+      case 'deleteFile':
+        deleteFileExtraction(tags, body)
+        break
+      case 'downloadFile':
+        downloadFileExtraction(tags, body)
+        break
     }
 
-    // TOOD: response.data.num-embeddings
-    // TOOD: response.data.embedding–length
+    span.addTags(tags)
 
     super.finish()
+  }
+}
+
+// the OpenAI package appears to stream the content download then provide it all as a singular string
+function downloadFileExtraction(tags, body) {
+  tags['openai.response.total_bytes'] = body.file.length
+}
+
+function deleteFileExtraction(tags, body) {
+  tags['openai.response.id'] = body.id
+  tags['openai.response.deleted'] = body.deleted
+}
+
+function createRetrieveFileExtraction(tags, body) {
+  tags['openai.request.purpose'] = body.purpose // extract from response for simplicity
+  tags['openai.request.file'] = body.filename // extract from response for simplicity
+  tags['openai.response.purpose'] = body.purpose
+  tags['openai.response.bytes'] = body.bytes
+  tags['openai.response.created_at'] = body.created_at
+  tags['openai.response.status'] = body.status
+  tags['openai.response.status_details'] = body.status_details
+}
+
+function createEmbeddingExtraction(tags, body) {
+  tags['openai.response.embeddings_count'] = body.data[0].embedding.length
+  // TODO: send every single embedding value via embeddings.<i>.embedding-length ?
+}
+
+function listFilesExtraction(tags, body) {
+  tags['openai.response.count'] = body.data.length
+}
+
+// TODO: Is there ever more than one entry in body.results?
+function createModerationExtraction(tags, body) {
+  tags['openai.response.id'] = body.id
+  // tags[`openai.response.model`] = body.model // redundant, already extracted globally
+  tags['openai.response.flagged'] = body.results[0].flagged
+
+  for (const [category, match] of Object.entries(body.results[0].categories)) {
+    tags[`openai.response.categories.${category}`] = match
+  }
+
+  for (const [category, score] of Object.entries(body.results[0].category_scores)) {
+    tags[`openai.response.category_scores.${category}`] = score
+  }
+}
+
+// createCompletion, createChatCompletion, createEdit
+function commonCreateExtraction(tags, body) {
+  for (let i = 0; i < body.choices.length; i++) {
+    const choice = body.choices[i]
+    tags[`openai.response.choices.${i}.finish_reason`] = choice.finish_reason
+    tags[`openai.response.choices.${i}.logprobs`] = 'logprobs' in choice && 'returned'
+    tags[`openai.response.choices.${i}.text`] = truncateText(choice.text) // TODO: truncate?
+
+    // createChatCompletion
+    if ('message' in choice) {
+      const message = choice.message
+      tags[`openai.response.choices.${i}.message.role`] = message.role
+      tags[`openai.response.choices.${i}.message.content`] = truncateText(message.content) // TODO: truncate?
+    }
   }
 }
 
@@ -173,6 +255,7 @@ function truncateText (text) {
   return text
 }
 
+// TODO: Remove
 function resourceName (endpoint, model) {
   endpoint = endpoint
     .substr(1) // remove leading /
@@ -186,9 +269,10 @@ function resourceName (endpoint, model) {
 }
 
 /**
+ * TODO: Remove
  * Estimate the token count for a given string.
- * 
  * Works by estimating the count in three different ways then averaging them.
+ * This is needed for streaming responses however the Node.js library doesn't support streaming.
  */
 function estimateTokenCount (str) {
   // 25% of overall character length
@@ -207,13 +291,20 @@ function estimateTokenCount (str) {
  * Returns an object that makes sense for pulling metrics from
  * Most methods tage an object as an argument. Some take other types.
  */
-function coerceBody(arg, methodName) {
+function coerceRequestBody(arg, methodName) {
   if (methodName === 'retrieveModel') {
     return { model: arg }
   }
 
-  // TODO: DO NOT MERGE THIS
-  throw new Error(`unable to coerce body for ${methodName}(${typeof(arg)})`)
+  return {}
+}
+
+function coerceResponseBody(body, methodName) {
+  if (methodName === 'downloadFile') {
+    return { file: body }
+  }
+
+  return {}
 }
 
 module.exports = OpenApiPlugin

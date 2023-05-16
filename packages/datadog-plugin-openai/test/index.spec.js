@@ -4,6 +4,7 @@ const { expect } = require('chai')
 const semver = require('semver')
 const agent = require('../../dd-trace/test/plugins/agent')
 const nock = require('nock')
+const fs = require('fs')
 
 describe('Plugin', () => {
   let openai
@@ -33,7 +34,7 @@ describe('Plugin', () => {
         openai = new OpenAIApi(configuration);
       })
 
-      describe('create completion', () => {
+      describe('createCompletion()', () => {
         let scope
 
         before(() => {
@@ -90,9 +91,11 @@ describe('Plugin', () => {
               expect(traces[0][0]).to.have.property('resource', 'createCompletion')
               expect(traces[0][0]).to.have.property('error', 0)
 
+              expect(traces[0][0].meta).to.have.property('openai.request.method', 'POST')
+              expect(traces[0][0].meta).to.have.property('openai.request.endpoint', '/v1/completions')
+
               expect(traces[0][0].meta).to.have.property('component', 'openai')
               expect(traces[0][0].meta).to.have.property('openai.user.api_key', 'sk-...ESTS')
-              expect(traces[0][0].meta).to.have.property('openai.model', 'text-davinci-002')
               expect(traces[0][0].meta).to.have.property('openai.api_base', 'https://api.openai.com/v1')
               expect(traces[0][0].meta).to.have.property('openai.request.prompt', 'Hello, ')
               expect(traces[0][0].meta).to.have.property('openai.organization.name', 'kill-9')
@@ -104,6 +107,8 @@ describe('Plugin', () => {
               expect(traces[0][0].metrics).to.have.property('openai.response.usage.completion_tokens', 16)
               expect(traces[0][0].metrics).to.have.property('openai.response.usage.total_tokens', 19)
 
+              expect(traces[0][0].meta).to.have.property('openai.request.model', 'text-davinci-002')
+              expect(traces[0][0].meta).to.have.property('openai.response.model', 'text-davinci-002')
             })
 
           const result = await openai.createCompletion({
@@ -117,21 +122,33 @@ describe('Plugin', () => {
         })
       })
 
-      describe('create embedding', () => {
+      describe('createEmbedding()', () => {
         let scope
 
         before(() => {
           scope = nock('https://api.openai.com:443', {"encodedQueryParams":true})
             .post('/v1/embeddings', {"model":"text-embedding-ada-002","input":"Cat?","user":"hunter2"})
-            .reply(200, {"object":"list","data":[{"object":"embedding","index":0,"embedding":[-0.0034387498,-0.026400521]}],"model":"text-embedding-ada-002-v2","usage":{"prompt_tokens":2,"total_tokens":2}},[
-            'Date', 'Mon, 15 May 2023 20:49:06 GMT',
-            'Content-Type', 'application/json',
-            'Content-Length', '75',
-            'access-control-allow-origin', '*',
-            'openai-organization', 'datadog-4',
-            'openai-processing-ms', '344',
-            'openai-version', '2020-10-01',
-          ])
+            .reply(200, {
+              "object":"list",
+              "data":[{
+                "object":"embedding",
+                "index":0,
+                "embedding":[-0.0034387498,-0.026400521]
+              }],
+              "model":"text-embedding-ada-002-v2",
+              "usage":{
+                "prompt_tokens":2,
+                "total_tokens":2
+              }
+            },[
+              'Date', 'Mon, 15 May 2023 20:49:06 GMT',
+              'Content-Type', 'application/json',
+              'Content-Length', '75',
+              'access-control-allow-origin', '*',
+              'openai-organization', 'kill-9',
+              'openai-processing-ms', '344',
+              'openai-version', '2020-10-01',
+            ])
         })
 
         after(() => {
@@ -147,12 +164,20 @@ describe('Plugin', () => {
               expect(traces[0][0]).to.have.property('resource', 'createEmbedding')
               expect(traces[0][0]).to.have.property('error', 0)
 
-              expect(traces[0][0].meta).to.have.property('openai.model', 'text-embedding-ada-002-v2')
+              expect(traces[0][0].meta).to.have.property('openai.request.method', 'POST')
+              expect(traces[0][0].meta).to.have.property('openai.request.endpoint', '/v1/embeddings')
+
+              expect(traces[0][0].meta).to.have.property('openai.organization.name', 'kill-9')
+
               expect(traces[0][0].meta).to.have.property('openai.request.input', 'Cat?')
 
               expect(traces[0][0].metrics).to.have.property('openai.response.usage.prompt_tokens', 2)
               expect(traces[0][0].metrics).to.have.property('openai.response.usage.total_tokens', 2)
 
+              expect(traces[0][0].metrics).to.have.property('openai.response.embeddings_count', 2)
+
+              expect(traces[0][0].meta).to.have.property('openai.request.model', 'text-embedding-ada-002')
+              expect(traces[0][0].meta).to.have.property('openai.response.model', 'text-embedding-ada-002-v2')
             })
 
           const result = await openai.createEmbedding({
@@ -167,7 +192,7 @@ describe('Plugin', () => {
         })
       })
 
-      describe('list models', () => {
+      describe('listModels()', () => {
         let scope
 
         before(() => {
@@ -242,6 +267,9 @@ describe('Plugin', () => {
               expect(traces[0][0]).to.have.property('type', 'openai')
               expect(traces[0][0]).to.have.property('resource', 'listModels')
               expect(traces[0][0]).to.have.property('error', 0)
+
+              expect(traces[0][0].meta).to.have.property('openai.request.method', 'GET')
+              expect(traces[0][0].meta).to.have.property('openai.request.endpoint', '/v1/models')
             })
 
           const result = await openai.listModels();
@@ -253,7 +281,7 @@ describe('Plugin', () => {
         })
       })
 
-      describe('retrieve model', () => {
+      describe('retrieveModel()', () => {
         let scope
 
         before(() => {
@@ -302,6 +330,9 @@ describe('Plugin', () => {
               expect(traces[0][0]).to.have.property('type', 'openai')
               expect(traces[0][0]).to.have.property('resource', 'retrieveModel')
               expect(traces[0][0]).to.have.property('error', 0)
+
+              expect(traces[0][0].meta).to.have.property('openai.request.method', 'GET')
+              expect(traces[0][0].meta).to.have.property('openai.request.endpoint', '/v1/models/gpt-4')
             })
 
           const result = await openai.retrieveModel('gpt-4');
@@ -312,8 +343,579 @@ describe('Plugin', () => {
         })
       })
 
+      describe('createEdit()', () => {
+        let scope
+
+        before(() => {
+          scope = nock('https://api.openai.com:443', {"encodedQueryParams":true})
+            .post('/v1/edits', {
+              "model":"text-davinci-edit-001",
+              "input":"What day of the wek is it?",
+              "instruction":"Fix the spelling mistakes",
+              "n":1,
+              "temperature":1.00001,
+              "top_p":0.999
+            })
+            .reply(200, {
+              "object":"edit",
+              "created":1684267309,
+              "choices":[{
+                "text":"What day of the week is it, Bob?\n",
+                "index":0
+              }],
+              "usage":{
+                "prompt_tokens":25,
+                "completion_tokens":28,
+                "total_tokens":53
+              }
+            }, [
+              'Date', 'Tue, 16 May 2023 20:01:49 GMT',
+              'Content-Type', 'application/json',
+              'Content-Length', '172',
+              'Connection', 'close',
+              'openai-model', 'text-davinci-edit:001',
+              'openai-organization', 'kill-9',
+              'openai-processing-ms', '920',
+              'openai-version', '2020-10-01',
+            ]);
+        })
+
+        after(() => {
+          nock.removeInterceptor(scope)
+          scope.done()
+        })
+
+        it('makes a successful call', async () => {
+          const checkTraces = agent
+            .use(traces => {
+              // console.log('T', traces[0][0])
+              expect(traces[0][0]).to.have.property('name', 'openai.request')
+              expect(traces[0][0]).to.have.property('type', 'openai')
+              expect(traces[0][0]).to.have.property('resource', 'createEdit')
+              expect(traces[0][0]).to.have.property('error', 0)
+              expect(traces[0][0].meta).to.have.property('openai.organization.name', 'kill-9')
+
+              expect(traces[0][0].meta).to.have.property('openai.request.method', 'POST')
+              expect(traces[0][0].meta).to.have.property('openai.request.endpoint', '/v1/edits')
+
+              expect(traces[0][0].meta).to.have.property('openai.response.choices.0.text', 'What day of the week is it, Bob?\\n')
+              expect(traces[0][0].meta).to.have.property('openai.request.model', 'text-davinci-edit-001')
+              expect(traces[0][0].meta).to.have.property('openai.request.input', 'What day of the wek is it?')
+              expect(traces[0][0].metrics).to.have.property('openai.response.create', 1684267309)
+              expect(traces[0][0].metrics).to.have.property('openai.response.choices.0.logprobs', 0)
+
+              expect(traces[0][0].metrics).to.have.property('openai.response.usage.prompt_tokens', 25)
+              expect(traces[0][0].metrics).to.have.property('openai.response.usage.completion_tokens', 28)
+              expect(traces[0][0].metrics).to.have.property('openai.response.usage.total_tokens', 53)
+            })
+
+          const result = await openai.createEdit({
+            "model": "text-davinci-edit-001",
+            "input": "What day of the wek is it?",
+            "instruction": "Fix the spelling mistakes",
+            "n": 1,
+            "temperature": 1.00001,
+            "top_p": 0.999
+          });
+
+          // console.log('RES', result.data)
+          expect(result.data.choices[0].text).to.eql('What day of the week is it, Bob?\n')
+
+          await checkTraces
+        })
+      })
+
+      if (semver.intersects(version, '3.1')) {
+        describe('createImage()', () => {
+          let scope
+
+          before(() => {
+            scope = nock('https://api.openai.com:443', {"encodedQueryParams":true})
+            .post('/v1/images/generations', {
+              "prompt":"A datadog wearing headphones",
+              "n":1,
+              "size":"256x256",
+              "response_format":"url",
+              "user":"hunter2"
+            })
+            .reply(200, {
+              "created":1684270747,
+              "data":[{
+                "url":"https://oaidalleapiprodscus.blob.core.windows.net/private/org-OS4zcsDN8sF8E8CdhxgMkBV4/user-b9gl70ON6Udxy769mEvXn5PN/img-s12p0dT5CypPBTn0xfrWBW61.png?st=2023-05-16T19%3A59%3A07Z&se=2023-05-16T21%3A59%3A07Z&sp=r&sv=2021-08-06&sr=b&rscd=inline&rsct=image/png&skoid=6aaadede-4fb3-4698-a8f6-684d7786b067&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2023-05-16T19%3A09%3A02Z&ske=2023-05-17T19%3A09%3A02Z&sks=b&skv=2021-08-06&sig=JbaZgOkCppEE3EPWrbdjFejXEA3nQZOxPXyDzXB97fk%3D"
+              }]
+            }, [
+              'Date', 'Tue, 16 May 2023 20:59:07 GMT',
+              'Content-Type', 'application/json',
+              'Content-Length', '545',
+              'Connection', 'close',
+              'openai-version', '2020-10-01',
+              'openai-organization', 'kill-9',
+              'openai-processing-ms', '5085',
+            ])
+          })
+
+          after(() => {
+            nock.removeInterceptor(scope)
+            scope.done()
+          })
+
+          it('makes a successful call', async () => {
+            const checkTraces = agent
+              .use(traces => {
+                expect(traces[0][0]).to.have.property('name', 'openai.request')
+                expect(traces[0][0]).to.have.property('type', 'openai')
+                expect(traces[0][0]).to.have.property('resource', 'createImage')
+                expect(traces[0][0]).to.have.property('error', 0)
+                expect(traces[0][0].meta).to.have.property('openai.organization.name', 'kill-9')
+
+                expect(traces[0][0].meta).to.have.property('openai.request.method', 'POST')
+                expect(traces[0][0].meta).to.have.property('openai.request.endpoint', '/v1/images/generations')
+
+                expect(traces[0][0].meta).to.have.property('openai.request.prompt', 'A datadog wearing headphones')
+                expect(traces[0][0].meta).to.have.property('openai.request.user', 'hunter2')
+                expect(traces[0][0].meta).to.have.property('openai.request.size', '256x256')
+                expect(traces[0][0].meta).to.have.property('openai.request.response_format', 'url')
+              })
+
+            const result = await openai.createImage({
+              prompt: "A datadog wearing headphones",
+              n: 1,
+              size: "256x256",
+              response_format: "url",
+              user: "hunter2"
+            })
+
+            //console.log('RESULT', result.data)
+            // expect(result.data.choices[0].text).to.eql('What day of the week is it, Bob?\n')
+
+            await checkTraces
+          })
+        })
+      }
+
+      if (semver.intersects(version, '3.0.1')) {
+        describe('createModeration()', () => {
+          let scope
+
+          before(() => {
+            scope = nock('https://api.openai.com:443', {"encodedQueryParams":true})
+              .post('/v1/moderations', {"input":"I want to harm the robots","model":"text-moderation-stable"})
+              .reply(200, {
+                "id":"modr-7HHZZZylF31ahuhmH279JrKbGTHCW",
+                "model":"text-moderation-001",
+                "results":[{
+                  "flagged":true,
+                  "categories":{
+                    "sexual":false,
+                    "hate":false,
+                    "violence":true,
+                    "self-harm":false,
+                    "sexual/minors":false,
+                    "hate/threatening":false,
+                    "violence/graphic":false
+                  },
+                  "category_scores":{
+                    "sexual":0.0018438849,
+                    "hate":0.069274776,
+                    "violence":0.74101615,
+                    "self-harm":0.008981651,
+                    "sexual/minors":0.00070737937,
+                    "hate/threatening":0.045174375,
+                    "violence/graphic":0.019271193
+                  }
+                }]
+              }, [
+                'Date', 'Wed, 17 May 2023 19:58:01 GMT',
+                'Content-Type', 'application/json',
+                'Content-Length', '450',
+                'Connection', 'close',
+                'openai-version', '2020-10-01',
+                'openai-organization', 'kill-9',
+                'openai-processing-ms', '419',
+              ])
+          })
+
+          after(() => {
+            nock.removeInterceptor(scope)
+            scope.done()
+          })
+
+          it('makes a successful call', async () => {
+            const checkTraces = agent
+              .use(traces => {
+                expect(traces[0][0]).to.have.property('name', 'openai.request')
+                expect(traces[0][0]).to.have.property('type', 'openai')
+                expect(traces[0][0]).to.have.property('resource', 'createModeration')
+                expect(traces[0][0]).to.have.property('error', 0)
+                expect(traces[0][0].meta).to.have.property('openai.organization.name', 'kill-9')
+
+                expect(traces[0][0].meta).to.have.property('openai.request.method', 'POST')
+                expect(traces[0][0].meta).to.have.property('openai.request.endpoint', '/v1/moderations')
+
+                expect(traces[0][0].meta).to.have.property('openai.request.model', 'text-moderation-stable')
+                expect(traces[0][0].meta).to.have.property('openai.request.input', 'I want to harm the robots')
+
+                expect(traces[0][0].meta).to.have.property('openai.response.model', 'text-moderation-001')
+                expect(traces[0][0].meta).to.have.property('openai.response.id', 'modr-7HHZZZylF31ahuhmH279JrKbGTHCW')
+                expect(traces[0][0].metrics).to.have.property('openai.response.flagged', 1)
+                expect(traces[0][0].metrics).to.have.property('openai.response.categories.violence', 1)
+                expect(traces[0][0].metrics).to.have.property('openai.response.categories.hate', 0)
+                expect(traces[0][0].metrics).to.have.property('openai.response.category_scores.violence', 0.74101615)
+                expect(traces[0][0].metrics).to.have.property('openai.response.category_scores.hate', 0.069274776)
+              })
+
+            const result = await openai.createModeration({
+              input: "I want to harm the robots",
+              model: "text-moderation-stable"
+            })
+
+            expect(result.data.results[0].flagged).to.eql(true)
+
+            await checkTraces
+          })
+        })
+      }
+
+      describe('listFiles()', () => {
+        let scope
+
+        before(() => {
+          scope = nock('https://api.openai.com:443', {"encodedQueryParams":true})
+          .get('/v1/files')
+          .reply(200, {
+            "object":"list",
+            "data":[{
+              "object":"file",
+              "id":"file-foofoofoo",
+              "purpose":"fine-tune-results",
+              "filename":"compiled_results.csv",
+              "bytes":3460,
+              "created_at":1684000162,
+              "status":"processed",
+              "status_details":null
+            },{
+              "object":"file",
+              "id":"file-barbarbar",
+              "purpose":"fine-tune-results",
+              "filename":"compiled_results.csv",
+              "bytes":13595,
+              "created_at":1684000508,
+              "status":"processed",
+              "status_details":null
+            }]
+          }, [
+            'Date', 'Wed, 17 May 2023 21:34:04 GMT',
+            'Content-Type', 'application/json',
+            'Content-Length', '25632',
+            'Connection', 'close',
+            'openai-version', '2020-10-01',
+            'openai-organization', 'kill-9',
+            'openai-processing-ms', '660',
+          ])
+        })
+
+        after(() => {
+          nock.removeInterceptor(scope)
+          scope.done()
+        })
+
+        it('makes a successful call', async () => {
+          const checkTraces = agent
+            .use(traces => {
+              expect(traces[0][0]).to.have.property('name', 'openai.request')
+              expect(traces[0][0]).to.have.property('type', 'openai')
+              expect(traces[0][0]).to.have.property('resource', 'listFiles')
+              expect(traces[0][0]).to.have.property('error', 0)
+              expect(traces[0][0].meta).to.have.property('openai.organization.name', 'kill-9')
+
+              expect(traces[0][0].meta).to.have.property('openai.request.method', 'GET')
+              expect(traces[0][0].meta).to.have.property('openai.request.endpoint', '/v1/files')
+
+              expect(traces[0][0].metrics).to.have.property('openai.response.count', 2)
+            })
+
+          const result = await openai.listFiles();
+
+          expect(result.data.data.length).to.eql(2)
+          expect(result.data.data[0].id).to.eql("file-foofoofoo")
+
+          await checkTraces
+        })
+      })
+
+      describe('createFile()', () => {
+        let scope
+
+        before(() => {
+          scope = nock('https://api.openai.com:443', {"encodedQueryParams":true})
+          .post('/v1/files', /.*/) // match any body as to avoid form boundary issues
+          .reply(200, {
+            "object":"file",
+            "id":"file-268aYWYhvxWwHb4nIzP9FHM6",
+            "purpose":"fine-tune",
+            "filename":"dave-hal.jsonl",
+            "bytes":356,
+            "created_at":1684362764,
+            "status":"uploaded",
+            "status_details":"foo" // dummy value for testing
+          }, [
+            'Date', 'Wed, 17 May 2023 22:32:44 GMT',
+            'Content-Type', 'application/json',
+            'Content-Length', '216',
+            'Connection', 'close',
+            'openai-version', '2020-10-01',
+            'openai-organization', 'kill-9',
+            'openai-processing-ms', '1021',
+          ]);
+        })
+
+        after(() => {
+          nock.removeInterceptor(scope)
+          scope.done()
+        })
+
+        it('makes a successful call', async () => {
+          const checkTraces = agent
+            .use(traces => {
+              expect(traces[0][0]).to.have.property('name', 'openai.request')
+              expect(traces[0][0]).to.have.property('type', 'openai')
+              expect(traces[0][0]).to.have.property('resource', 'createFile')
+              expect(traces[0][0]).to.have.property('error', 0)
+              expect(traces[0][0].meta).to.have.property('openai.organization.name', 'kill-9')
+
+              expect(traces[0][0].meta).to.have.property('openai.request.method', 'POST')
+              expect(traces[0][0].meta).to.have.property('openai.request.endpoint', '/v1/files')
+
+              expect(traces[0][0].meta).to.have.property('openai.request.purpose', 'fine-tune')
+              expect(traces[0][0].meta).to.have.property('openai.request.file', 'dave-hal.jsonl')
+
+              expect(traces[0][0].meta).to.have.property('openai.response.purpose', 'fine-tune')
+              expect(traces[0][0].meta).to.have.property('openai.response.status', 'uploaded')
+              expect(traces[0][0].meta).to.have.property('openai.response.status_details', 'foo')
+
+              expect(traces[0][0].metrics).to.have.property('openai.response.bytes', 356)
+              expect(traces[0][0].metrics).to.have.property('openai.response.created_at', 1684362764)
+            })
+
+          const result = await openai.createFile(fs.createReadStream(__dirname + '/dave-hal.jsonl'), 'fine-tune')
+
+          expect(result.data.filename).to.eql('dave-hal.jsonl')
+
+          await checkTraces
+        })
+      })
+
+      describe('deleteFile()', () => {
+        let scope
+
+        before(() => {
+          scope = nock('https://api.openai.com:443', {"encodedQueryParams":true})
+            .delete('/v1/files/file-268aYWYhvxWwHb4nIzP9FHM6')
+            .reply(200, {
+              "object":"file",
+              "id":"file-268aYWYhvxWwHb4nIzP9FHM6",
+              "deleted":true
+            }, [
+              'Date', 'Wed, 17 May 2023 23:03:54 GMT',
+              'Content-Type', 'application/json',
+              'Content-Length', '83',
+              'Connection', 'close',
+              'openai-version', '2020-10-01',
+              'openai-organization', 'kill-9',
+            ])
+        })
+
+        after(() => {
+          nock.removeInterceptor(scope)
+          scope.done()
+        })
+
+        it('makes a successful call', async () => {
+          const checkTraces = agent
+            .use(traces => {
+              expect(traces[0][0]).to.have.property('name', 'openai.request')
+              expect(traces[0][0]).to.have.property('type', 'openai')
+              expect(traces[0][0]).to.have.property('resource', 'deleteFile')
+              expect(traces[0][0]).to.have.property('error', 0)
+              expect(traces[0][0].meta).to.have.property('openai.organization.name', 'kill-9')
+
+              expect(traces[0][0].meta).to.have.property('openai.request.method', 'DELETE')
+              expect(traces[0][0].meta).to.have.property('openai.request.endpoint', '/v1/files/file-268aYWYhvxWwHb4nIzP9FHM6')
+
+              expect(traces[0][0].meta).to.have.property('openai.response.id', 'file-268aYWYhvxWwHb4nIzP9FHM6')
+              expect(traces[0][0].metrics).to.have.property('openai.response.deleted', 1)
+            })
+
+          const result = await openai.deleteFile('file-268aYWYhvxWwHb4nIzP9FHM6')
+
+          expect(result.data.deleted).to.eql(true)
+
+          await checkTraces
+        })
+      })
+
+      describe('retrieveFile()', () => {
+        let scope
+
+        before(() => {
+          scope = nock('https://api.openai.com:443', {"encodedQueryParams":true})
+            .get('/v1/files/file-fIkEUgQPWnVXNKPJsr4pEWiz')
+            .reply(200, {
+              "object":"file",
+              "id":"file-268aYWYhvxWwHb4nIzP9FHM6",
+              "purpose":"fine-tune",
+              "filename":"dave-hal.jsonl",
+              "bytes":356,
+              "created_at":1684362764,
+              "status":"uploaded",
+              "status_details":"foo" // dummy value for testing
+            }, [
+              'Date', 'Wed, 17 May 2023 23:14:02 GMT',
+              'Content-Type', 'application/json',
+              'Content-Length', '240',
+              'Connection', 'close',
+              'openai-version', '2020-10-01',
+              'openai-organization', 'kill-9',
+              'openai-processing-ms', '18',
+            ])
+        })
+
+        after(() => {
+          nock.removeInterceptor(scope)
+          scope.done()
+        })
+
+        it('makes a successful call', async () => {
+          const checkTraces = agent
+            .use(traces => {
+              expect(traces[0][0]).to.have.property('name', 'openai.request')
+              expect(traces[0][0]).to.have.property('type', 'openai')
+              expect(traces[0][0]).to.have.property('resource', 'retrieveFile')
+              expect(traces[0][0]).to.have.property('error', 0)
+              expect(traces[0][0].meta).to.have.property('openai.organization.name', 'kill-9')
+
+              expect(traces[0][0].meta).to.have.property('openai.request.method', 'GET')
+              expect(traces[0][0].meta).to.have.property('openai.request.endpoint', '/v1/files/file-fIkEUgQPWnVXNKPJsr4pEWiz')
+
+              expect(traces[0][0].meta).to.have.property('openai.response.purpose', 'fine-tune')
+              expect(traces[0][0].meta).to.have.property('openai.response.status', 'uploaded')
+              expect(traces[0][0].meta).to.have.property('openai.response.status_details', 'foo')
+
+              expect(traces[0][0].metrics).to.have.property('openai.response.bytes', 356)
+              expect(traces[0][0].metrics).to.have.property('openai.response.created_at', 1684362764)
+            })
+
+          const result = await openai.retrieveFile('file-fIkEUgQPWnVXNKPJsr4pEWiz');
+
+          expect(result.data.filename).to.eql('dave-hal.jsonl')
+
+          await checkTraces
+        })
+      })
+
+      describe('downloadFile()', () => {
+        let scope
+
+        before(() => {
+          scope = nock('https://api.openai.com:443', {"encodedQueryParams":true})
+            .get('/v1/files/file-t3k1gVSQDHrfZnPckzftlZ4A/content')
+            .reply(200, "{\"prompt\": \"foo?\", \"completion\": \"bar.\"}\n{\"prompt\": \"foofoo?\", \"completion\": \"barbar.\"}\n", [
+              'Date', 'Wed, 17 May 2023 23:26:01 GMT',
+              'Content-Type', 'application/octet-stream',
+              'Transfer-Encoding', 'chunked',
+              'Connection', 'close',
+              'content-disposition', 'attachment; filename="dave-hal.jsonl"',
+              'openai-version', '2020-10-01',
+              'openai-organization', 'kill-9',
+              'openai-processing-ms', '128',
+            ])
+        })
+
+        after(() => {
+          nock.removeInterceptor(scope)
+          scope.done()
+        })
+
+        it('makes a successful call', async () => {
+          const checkTraces = agent
+            .use(traces => {
+              expect(traces[0][0]).to.have.property('name', 'openai.request')
+              expect(traces[0][0]).to.have.property('type', 'openai')
+              expect(traces[0][0]).to.have.property('resource', 'downloadFile')
+              expect(traces[0][0]).to.have.property('error', 0)
+              expect(traces[0][0].meta).to.have.property('openai.organization.name', 'kill-9')
+
+              expect(traces[0][0].meta).to.have.property('openai.request.method', 'GET')
+              expect(traces[0][0].meta).to.have.property('openai.request.endpoint', '/v1/files/file-t3k1gVSQDHrfZnPckzftlZ4A/content')
+
+              expect(traces[0][0].metrics).to.have.property('openai.response.total_bytes', 88)
+            })
+
+          const result = await openai.downloadFile('file-t3k1gVSQDHrfZnPckzftlZ4A')
+
+          /**
+           * TODO: Seems like an OpenAI library bug?
+           * downloading single line JSONL file results in the JSON being converted into an object.
+           * downloading multi-line JSONL file then provides a basic string.
+           * This suggests the library is doing `try { return JSON.parse(x) } catch { return x }`
+           */
+          expect(result.data[0]).to.eql('{') // raw JSONL file
+
+          await checkTraces
+        })
+      })
+
+      // BEGIN TEMPLATE
+      describe.skip('TEMPLATE()', () => {
+        let scope
+
+        before(() => {
+          scope = nock()
+        })
+
+        after(() => {
+          nock.removeInterceptor(scope)
+          scope.done()
+        })
+
+        it('makes a successful call', async () => {
+          const checkTraces = agent
+            .use(traces => {
+              console.log('TRACE', traces[0][0])
+              // expect(traces[0][0]).to.have.property('name', 'openai.request')
+              // expect(traces[0][0]).to.have.property('type', 'openai')
+              // expect(traces[0][0]).to.have.property('resource', 'createEdit')
+              // expect(traces[0][0]).to.have.property('error', 0)
+              // expect(traces[0][0].meta).to.have.property('openai.organization.name', 'kill-9')
+
+              // expect(traces[0][0].meta).to.have.property('openai.request.method', 'POST')
+              // expect(traces[0][0].meta).to.have.property('openai.request.endpoint', '/v1/images/generations')
+
+              // expect(traces[0][0].meta).to.have.property('openai.response.choices.0.text', 'What day of the week is it, Bob?\\n')
+              // expect(traces[0][0].meta).to.have.property('openai.request.model', 'text-davinci-edit-001')
+              // expect(traces[0][0].meta).to.have.property('openai.request.input', 'What day of the wek is it?')
+              // expect(traces[0][0].metrics).to.have.property('openai.response.create', 1684267309)
+              // expect(traces[0][0].metrics).to.have.property('openai.response.choices.0.logprobs', 0)
+
+              // expect(traces[0][0].metrics).to.have.property('openai.response.usage.prompt_tokens', 25)
+              // expect(traces[0][0].metrics).to.have.property('openai.response.usage.completion_tokens', 28)
+              // expect(traces[0][0].metrics).to.have.property('openai.response.usage.total_tokens', 53)
+            })
+
+          const result = await openai.template({
+            "foo": "bar"
+          });
+
+          console.log('RESULT', result.data)
+          // expect(result.data.choices[0].text).to.eql('What day of the week is it, Bob?\n')
+
+          await checkTraces
+        })
+      })
+      // END TEMPLATE
+
       if (semver.intersects(version, '3.2')) {
-        describe('create chat completion', () => {
+        describe('createChatCompletion()', () => {
           let scope
 
           before(() => {
@@ -327,7 +929,7 @@ describe('Plugin', () => {
               'access-control-allow-origin', '*',
               'Cache-Control', 'no-cache, must-revalidate',
               'openai-model', 'gpt-3.5-turbo-0301',
-              'openai-organization', 'datadog-4',
+              'openai-organization', 'kill-9',
               'openai-processing-ms', '713',
               'openai-version', '2020-10-01',
             ]);
@@ -345,12 +947,16 @@ describe('Plugin', () => {
                 expect(traces[0][0]).to.have.property('type', 'openai')
                 expect(traces[0][0]).to.have.property('resource', 'createChatCompletion')
                 expect(traces[0][0]).to.have.property('error', 0)
+                expect(traces[0][0].meta).to.have.property('openai.organization.name', 'kill-9')
 
-                expect(traces[0][0].meta).to.have.property('openai.model', 'gpt-3.5-turbo-0301')
+                expect(traces[0][0].meta).to.have.property('openai.request.method', 'POST')
+                expect(traces[0][0].meta).to.have.property('openai.request.endpoint', '/v1/chat/completions')
+
                 expect(traces[0][0].meta).to.have.property('openai.request.user', 'hunter2')
 
                 expect(traces[0][0].meta).to.have.property('openai.request.0.content', 'Peanut Butter or Jelly?')
                 expect(traces[0][0].meta).to.have.property('openai.request.0.role', 'user')
+                expect(traces[0][0].meta).to.have.property('openai.request.0.name', 'hunter2')
 
                 expect(traces[0][0].meta).to.have.property('openai.request.1.content', 'Are you allergic to peanuts?')
                 expect(traces[0][0].meta).to.have.property('openai.request.1.role', 'assistant')
@@ -371,6 +977,9 @@ describe('Plugin', () => {
                 expect(traces[0][0].metrics).to.have.property('openai.response.usage.completion_tokens', 10)
                 expect(traces[0][0].metrics).to.have.property('openai.response.usage.total_tokens', 47)
                 expect(traces[0][0].metrics).to.have.property('openai.response.choices.0.logprobs', 0)
+
+                expect(traces[0][0].meta).to.have.property('openai.request.model', 'gpt-3.5-turbo')
+                expect(traces[0][0].meta).to.have.property('openai.response.model', 'gpt-3.5-turbo-0301')
               })
 
             const result = await openai.createChatCompletion({

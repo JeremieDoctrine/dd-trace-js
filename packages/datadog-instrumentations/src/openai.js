@@ -30,12 +30,12 @@ addHook({ name: 'openai', file: 'dist/api.js', versions: ['>=3.0.0'] }, exports 
 
       try {
         const response = await fn.apply(this, arguments)
-        // console.log('R', response)
 
-        // const { model, orgName } = extractHeaders(response)
         finishCh.publish({
           headers: response.headers,
-          body: response.data
+          body: response.data,
+          path: response.request.path,
+          method: response.request.method
         })
 
         return response
@@ -50,14 +50,3 @@ addHook({ name: 'openai', file: 'dist/api.js', versions: ['>=3.0.0'] }, exports 
 
   return exports
 })
-
-/*
-function extractHeaders(response) {
-  return {
-    model: response.headers['openai-model'],
-    orgName: response.headers['openai-organization'],
-    timing: response.headers['openai-processing-ms'], // unused
-    version: response.headers['openai-version'], // unused
-  }
-}
-*/
