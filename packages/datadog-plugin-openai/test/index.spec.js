@@ -441,7 +441,7 @@ describe('Plugin', () => {
             .reply(200, {
               "created":1684270747,
               "data":[{
-                "url":"https://oaidalleapiprodscus.blob.core.windows.net/private/org-OS4zcsDN8sF8E8CdhxgMkBV4/user-b9gl70ON6Udxy769mEvXn5PN/img-s12p0dT5CypPBTn0xfrWBW61.png?st=2023-05-16T19%3A59%3A07Z&se=2023-05-16T21%3A59%3A07Z&sp=r&sv=2021-08-06&sr=b&rscd=inline&rsct=image/png&skoid=6aaadede-4fb3-4698-a8f6-684d7786b067&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2023-05-16T19%3A09%3A02Z&ske=2023-05-17T19%3A09%3A02Z&sks=b&skv=2021-08-06&sig=JbaZgOkCppEE3EPWrbdjFejXEA3nQZOxPXyDzXB97fk%3D"
+                "url":"https://oaidalleapiprodscus.blob.core.windows.net/private/org-COOLORG/user-b9gl70ON6Udxy769mEvXn5PN/img-s12p0dT5CypPBTn0xfrWBW61.png?st=2023-05-16T19%3A59%3A07Z&se=2023-05-16T21%3A59%3A07Z&sp=r&sv=2021-08-06&sr=b&rscd=inline&rsct=image/png&skoid=6aaadede-4fb3-4698-a8f6-684d7786b067&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2023-05-16T19%3A09%3A02Z&ske=2023-05-17T19%3A09%3A02Z&sks=b&skv=2021-08-06&sig=JbaZgOkCppEE3EPWrbdjFejXEA3nQZOxPXyDzXB97fk%3D"
               }]
             }, [
               'Date', 'Tue, 16 May 2023 20:59:07 GMT',
@@ -860,6 +860,489 @@ describe('Plugin', () => {
            * This suggests the library is doing `try { return JSON.parse(x) } catch { return x }`
            */
           expect(result.data[0]).to.eql('{') // raw JSONL file
+
+          await checkTraces
+        })
+      })
+
+      describe('createFineTune()', () => {
+        let scope
+
+        before(() => {
+          scope = nock('https://api.openai.com:443', {"encodedQueryParams":true})
+            .post('/v1/fine-tunes', {"training_file":"file-t3k1gVSQDHrfZnPckzftlZ4A","model":"curie","n_epochs":4,"batch_size":3,"learning_rate_multiplier":0.1,"prompt_loss_weight":0.01,"compute_classification_metrics":false,"suffix":"deleteme"})
+            .reply(200, {
+              "object":"fine-tune",
+              "id":"ft-10RCfqSvgyEcauomw7VpiYco",
+              "hyperparams":{
+                "n_epochs":5,
+                "batch_size":3,
+                "prompt_loss_weight":0.01,
+                "learning_rate_multiplier":0.1
+              },
+              "organization_id":"org-COOLORG",
+              "model":"curie",
+              "training_files":[{
+                "object":"file",
+                "id":"file-t3k1gVSQDHrfZnPckzftlZ4A",
+                "purpose":"fine-tune",
+                "filename":"dave-hal.jsonl",
+                "bytes":356,
+                "created_at":1684365950,
+                "status":"processed",
+                "status_details":null
+              }],
+              "validation_files":[],
+              "result_files":[],
+              "created_at":1684442489,
+              "updated_at":1684442489,
+              "status":"pending",
+              "fine_tuned_model":null,
+              "events":[{
+                "object":"fine-tune-event",
+                "level":"info",
+                "message":"Created fine-tune: ft-10RCfqSvgyEcauomw7VpiYco",
+                "created_at":1684442489
+              }]
+            }, [
+              'Date', 'Thu, 18 May 2023 20:41:30 GMT',
+              'Content-Type', 'application/json',
+              'Content-Length', '898',
+              'Connection', 'close',
+              'openai-version', '2020-10-01',
+              'openai-processing-ms', '116',
+            ])
+        })
+
+        after(() => {
+          nock.removeInterceptor(scope)
+          scope.done()
+        })
+
+        it('makes a successful call', async () => {
+          const checkTraces = agent
+            .use(traces => {
+              expect(traces[0][0]).to.have.property('name', 'openai.request')
+              expect(traces[0][0]).to.have.property('type', 'openai')
+              expect(traces[0][0]).to.have.property('resource', 'createFineTune')
+              expect(traces[0][0]).to.have.property('error', 0)
+              expect(traces[0][0].meta).to.have.property('openai.organization.id', 'org-COOLORG') // no name just id
+
+              expect(traces[0][0].meta).to.have.property('openai.request.method', 'POST')
+              expect(traces[0][0].meta).to.have.property('openai.request.endpoint', '/v1/fine-tunes')
+
+              expect(traces[0][0].meta).to.have.property('openai.request.suffix', 'deleteme')
+              expect(traces[0][0].meta).to.have.property('openai.request.training_file', 'file-t3k1gVSQDHrfZnPckzftlZ4A')
+              expect(traces[0][0].meta).to.have.property('openai.response.id', 'ft-10RCfqSvgyEcauomw7VpiYco')
+              expect(traces[0][0].metrics).to.have.property('openai.request.n_epochs', 4)
+              expect(traces[0][0].metrics).to.have.property('openai.request.batch_size', 3)
+              expect(traces[0][0].metrics).to.have.property('openai.request.learning_rate_multiplier', 0.1)
+              expect(traces[0][0].metrics).to.have.property('openai.request.prompt_loss_weight', 0.01)
+              expect(traces[0][0].metrics).to.have.property('openai.request.compute_classification_metrics', 0)
+
+
+              expect(traces[0][0].meta).to.have.property('openai.response.model', 'curie')
+              expect(traces[0][0].meta).to.have.property('openai.response.status', 'pending')
+              expect(traces[0][0].metrics).to.have.property('openai.response.created_at', 1684442489)
+              expect(traces[0][0].metrics).to.have.property('openai.response.events_count', 1)
+              expect(traces[0][0].metrics).to.have.property('openai.response.hyperparams.n_epochs', 5)
+              expect(traces[0][0].metrics).to.have.property('openai.response.hyperparams.batch_size', 3)
+              expect(traces[0][0].metrics).to.have.property('openai.response.hyperparams.prompt_loss_weight', 0.01)
+              expect(traces[0][0].metrics).to.have.property('openai.response.hyperparams.learning_rate_multiplier', 0.1)
+              expect(traces[0][0].metrics).to.have.property('openai.response.training_files_count', 1)
+              expect(traces[0][0].metrics).to.have.property('openai.response.result_files_count', 0)
+              expect(traces[0][0].metrics).to.have.property('openai.response.validation_files_count', 0)
+              expect(traces[0][0].metrics).to.have.property('openai.response.updated_at', 1684442489)
+            })
+
+          // only certain request parameter combinations are allowed, leaving unused ones commented for now
+          const result = await openai.createFineTune({
+            training_file: 'file-t3k1gVSQDHrfZnPckzftlZ4A',
+            model: 'curie',
+            n_epochs: 4,
+            batch_size: 3,
+            learning_rate_multiplier: 0.1,
+            prompt_loss_weight: 0.01,
+            compute_classification_metrics: false,
+            suffix: 'deleteme',
+            // classification_n_classes: 1,
+            // classification_positive_class: 'wat',
+            // classification_betas: [],
+            // validation_file: '',
+          })
+
+          expect(result.data.id).to.eql('ft-10RCfqSvgyEcauomw7VpiYco')
+
+          await checkTraces
+        })
+      })
+
+      describe('retrieveFineTune()', () => {
+        let scope
+
+        before(() => {
+          scope = nock('https://api.openai.com:443', {"encodedQueryParams":true})
+          .get('/v1/fine-tunes/ft-10RCfqSvgyEcauomw7VpiYco')
+          .reply(200, {
+            "object":"fine-tune",
+            "id":"ft-10RCfqSvgyEcauomw7VpiYco",
+            "hyperparams":{
+              "n_epochs":4,
+              "batch_size":3,
+              "prompt_loss_weight":0.01,
+              "learning_rate_multiplier":0.1
+            },
+            "organization_id":"org-COOLORG",
+            "model":"curie",
+            "training_files":[{
+              "object":"file",
+              "id":"file-t3k1gVSQDHrfZnPckzftlZ4A",
+              "purpose":"fine-tune",
+              "filename":"dave-hal.jsonl",
+              "bytes":356,
+              "created_at":1684365950,
+              "status":"processed",
+              "status_details":null
+            }],
+            "validation_files":[],
+            "result_files":[{
+              "object":"file",
+              "id":"file-bJyf8TM0jeSZueBo4jpodZVQ",
+              "purpose":"fine-tune-results",
+              "filename":"compiled_results.csv",
+              "bytes":410,
+              "created_at":1684442697,
+              "status":"processed",
+              "status_details":null
+            }],
+            "created_at":1684442489,
+            "updated_at":1684442697,
+            "status":"succeeded",
+            "fine_tuned_model":"curie:ft-datadog:deleteme-2023-05-18-20-44-56",
+            "events":[
+              {"object":"fine-tune-event", "level":"info", "message":"Created fine-tune: ft-10RCfqSvgyEcauomw7VpiYco", "created_at":1684442489 },
+              {"object":"fine-tune-event", "level":"info", "message":"Fine-tune costs $0.00", "created_at":1684442612 },
+              {"object":"fine-tune-event", "level":"info", "message":"Fine-tune enqueued. Queue number: 0", "created_at":1684442612},
+              {"object":"fine-tune-event","level":"info","message":"Fine-tune started","created_at":1684442614},
+              {"object":"fine-tune-event","level":"info","message":"Completed epoch 1/4","created_at":1684442677},
+              {"object":"fine-tune-event","level":"info","message":"Completed epoch 2/4","created_at":1684442677},
+              {"object":"fine-tune-event","level":"info","message":"Completed epoch 3/4","created_at":1684442678},
+              {"object":"fine-tune-event","level":"info","message":"Completed epoch 4/4","created_at":1684442679},
+              {"object":"fine-tune-event","level":"info","message":"Uploaded model: curie:ft-datadog:deleteme-2023-05-18-20-44-56","created_at":1684442696},
+              {"object":"fine-tune-event","level":"info","message":"Uploaded result file: file-bJyf8TM0jeSZueBo4jpodZVQ","created_at":1684442697},
+              {"object":"fine-tune-event","level":"info","message":"Fine-tune succeeded","created_at":1684442697}
+            ]}, [
+              'Date', 'Thu, 18 May 2023 22:11:53 GMT',
+              'Content-Type', 'application/json',
+              'Content-Length', '2727',
+              'Connection', 'close',
+              'openai-version', '2020-10-01',
+              'openai-processing-ms', '51',
+            ])
+        })
+
+        after(() => {
+          nock.removeInterceptor(scope)
+          scope.done()
+        })
+
+        it('makes a successful call', async () => {
+          const checkTraces = agent
+            .use(traces => {
+              expect(traces[0][0]).to.have.property('name', 'openai.request')
+              expect(traces[0][0]).to.have.property('type', 'openai')
+              expect(traces[0][0]).to.have.property('resource', 'retrieveFineTune')
+              expect(traces[0][0]).to.have.property('error', 0)
+              expect(traces[0][0].meta).to.have.property('openai.organization.id', 'org-COOLORG') // no name just id
+
+              expect(traces[0][0].meta).to.have.property('openai.request.method', 'GET')
+              expect(traces[0][0].meta).to.have.property('openai.request.endpoint', '/v1/fine-tunes/ft-10RCfqSvgyEcauomw7VpiYco')
+
+              expect(traces[0][0].meta).to.have.property('openai.response.model', 'curie')
+              expect(traces[0][0].meta).to.have.property('openai.response.status', 'succeeded')
+              expect(traces[0][0].metrics).to.have.property('openai.response.created_at', 1684442489)
+              expect(traces[0][0].metrics).to.have.property('openai.response.events_count', 11)
+              expect(traces[0][0].metrics).to.have.property('openai.response.hyperparams.n_epochs', 4)
+              expect(traces[0][0].metrics).to.have.property('openai.response.hyperparams.batch_size', 3)
+              expect(traces[0][0].metrics).to.have.property('openai.response.hyperparams.prompt_loss_weight', 0.01)
+              expect(traces[0][0].metrics).to.have.property('openai.response.hyperparams.learning_rate_multiplier', 0.1)
+              expect(traces[0][0].metrics).to.have.property('openai.response.training_files_count', 1)
+              expect(traces[0][0].metrics).to.have.property('openai.response.result_files_count', 1)
+              expect(traces[0][0].metrics).to.have.property('openai.response.validation_files_count', 0)
+              expect(traces[0][0].metrics).to.have.property('openai.response.updated_at', 1684442697)
+            })
+
+          const result = await openai.retrieveFineTune('ft-10RCfqSvgyEcauomw7VpiYco')
+
+          expect(result.data.id).to.eql('ft-10RCfqSvgyEcauomw7VpiYco')
+
+          await checkTraces
+        })
+      })
+
+      describe('listFineTunes()', () => {
+        let scope
+
+        before(() => {
+          scope = nock('https://api.openai.com:443', {"encodedQueryParams":true})
+            .get('/v1/fine-tunes')
+            .reply(200, {
+              "object": "list",
+              "data": [{
+                "object":"fine-tune",
+                "id":"ft-10RCfqSvgyEcauomw7VpiYco",
+                "hyperparams":{
+                  "n_epochs":4,
+                  "batch_size":3,
+                  "prompt_loss_weight":0.01,
+                  "learning_rate_multiplier":0.1
+                },
+                "organization_id":"org-COOLORG",
+                "model":"curie",
+                "training_files":[{
+                  "object":"file",
+                  "id":"file-t3k1gVSQDHrfZnPckzftlZ4A",
+                  "purpose":"fine-tune",
+                  "filename":"dave-hal.jsonl",
+                  "bytes":356,
+                  "created_at":1684365950,
+                  "status":"processed",
+                  "status_details":null
+                }],
+                "validation_files":[],
+                "result_files":[{
+                  "object":"file",
+                  "id":"file-bJyf8TM0jeSZueBo4jpodZVQ",
+                  "purpose":"fine-tune-results",
+                  "filename":"compiled_results.csv",
+                  "bytes":410,
+                  "created_at":1684442697,
+                  "status":"processed",
+                  "status_details":null
+                }],
+                "created_at":1684442489,
+                "updated_at":1684442697,
+                "status":"succeeded",
+                "fine_tuned_model":"curie:ft-datadog:deleteme-2023-05-18-20-44-56",
+              }]
+            })
+        })
+
+        after(() => {
+          nock.removeInterceptor(scope)
+          scope.done()
+        })
+
+        it('makes a successful call', async () => {
+          const checkTraces = agent
+            .use(traces => {
+              expect(traces[0][0]).to.have.property('name', 'openai.request')
+              expect(traces[0][0]).to.have.property('type', 'openai')
+              expect(traces[0][0]).to.have.property('resource', 'listFineTunes')
+              expect(traces[0][0]).to.have.property('error', 0)
+              // no semblance of org info in response
+
+              expect(traces[0][0].meta).to.have.property('openai.request.method', 'GET')
+              expect(traces[0][0].meta).to.have.property('openai.request.endpoint', '/v1/fine-tunes')
+
+              expect(traces[0][0].metrics).to.have.property('openai.response.count', 1)
+            })
+
+          const result = await openai.listFineTunes()
+
+          expect(result.data.object).to.eql('list')
+
+          await checkTraces
+        })
+      })
+
+      describe('listFineTuneEvents()', () => {
+        let scope
+
+        before(() => {
+          scope = nock('https://api.openai.com:443', {"encodedQueryParams":true})
+          .get('/v1/fine-tunes/ft-10RCfqSvgyEcauomw7VpiYco/events')
+          .reply(200, {
+            "object":"list",
+            "data":[
+              {"object":"fine-tune-event","level":"info","message":"Created fine-tune: ft-10RCfqSvgyEcauomw7VpiYco","created_at":1684442489},
+              {"object":"fine-tune-event","level":"info","message":"Fine-tune costs $0.00","created_at":1684442612},
+              {"object":"fine-tune-event","level":"info","message":"Fine-tune enqueued. Queue number: 0","created_at":1684442612},
+              {"object":"fine-tune-event","level":"info","message":"Fine-tune started","created_at":1684442614},
+              {"object":"fine-tune-event","level":"info","message":"Completed epoch 1/4","created_at":1684442677},
+              {"object":"fine-tune-event","level":"info","message":"Completed epoch 2/4","created_at":1684442677},
+              {"object":"fine-tune-event","level":"info","message":"Completed epoch 3/4","created_at":1684442678},
+              {"object":"fine-tune-event","level":"info","message":"Completed epoch 4/4","created_at":1684442679},
+              {"object":"fine-tune-event","level":"info","message":"Uploaded model: curie:ft-datadog:deleteme-2023-05-18-20-44-56","created_at":1684442696},
+              {"object":"fine-tune-event","level":"info","message":"Uploaded result file: file-bJyf8TM0jeSZueBo4jpodZVQ","created_at":1684442697},
+              {"object":"fine-tune-event","level":"info","message":"Fine-tune succeeded","created_at":1684442697}
+            ]}, [
+              'Date', 'Thu, 18 May 2023 22:47:17 GMT',
+              'Content-Type', 'application/json',
+              'Content-Length', '1718',
+              'Connection', 'close',
+              'openai-version', '2020-10-01',
+              'openai-processing-ms', '33',
+            ])
+        })
+
+        after(() => {
+          nock.removeInterceptor(scope)
+          scope.done()
+        })
+
+        it('makes a successful call', async () => {
+          const checkTraces = agent
+            .use(traces => {
+              expect(traces[0][0]).to.have.property('name', 'openai.request')
+              expect(traces[0][0]).to.have.property('type', 'openai')
+              expect(traces[0][0]).to.have.property('resource', 'listFineTuneEvents')
+              expect(traces[0][0]).to.have.property('error', 0)
+              // no semblance of org info in response
+
+              expect(traces[0][0].meta).to.have.property('openai.request.method', 'GET')
+              expect(traces[0][0].meta).to.have.property('openai.request.endpoint', '/v1/fine-tunes/ft-10RCfqSvgyEcauomw7VpiYco/events')
+
+              expect(traces[0][0].metrics).to.have.property('openai.response.count', 11)
+            })
+
+          const result = await openai.listFineTuneEvents('ft-10RCfqSvgyEcauomw7VpiYco')
+
+          expect(result.data.object).to.eql('list')
+
+          await checkTraces
+        })
+      })
+
+      describe('deleteModel()', () => {
+        let scope
+
+        before(() => {
+          scope = nock('https://api.openai.com:443', {"encodedQueryParams":true})
+            .delete('/v1/models/ft-10RCfqSvgyEcauomw7VpiYco')
+            .reply(200, { // guessing on response format here since my key lacks permissions
+              "object":"model",
+              "id":"ft-10RCfqSvgyEcauomw7VpiYco",
+              "deleted":true
+            }, [
+              'Date', 'Thu, 18 May 2023 22:59:08 GMT',
+              'Content-Type', 'application/json',
+              'Content-Length', '152',
+              'Connection', 'close',
+              'access-control-allow-origin', '*',
+              'openai-version', '2020-10-01',
+              'openai-processing-ms', '23',
+            ])
+        })
+
+        after(() => {
+          nock.removeInterceptor(scope)
+          scope.done()
+        })
+
+        it('makes a successful call', async () => {
+          const checkTraces = agent
+            .use(traces => {
+              expect(traces[0][0]).to.have.property('name', 'openai.request')
+              expect(traces[0][0]).to.have.property('type', 'openai')
+              expect(traces[0][0]).to.have.property('resource', 'deleteModel')
+              expect(traces[0][0]).to.have.property('error', 0)
+
+              expect(traces[0][0].meta).to.have.property('openai.request.method', 'DELETE')
+              expect(traces[0][0].meta).to.have.property('openai.request.endpoint', '/v1/models/ft-10RCfqSvgyEcauomw7VpiYco')
+
+              expect(traces[0][0].metrics).to.have.property('openai.response.deleted', 1)
+              expect(traces[0][0].meta).to.have.property('openai.response.id', 'ft-10RCfqSvgyEcauomw7VpiYco')
+            })
+
+          const result = await openai.deleteModel('ft-10RCfqSvgyEcauomw7VpiYco')
+
+          expect(result.data.deleted).to.eql(true)
+
+          await checkTraces
+        })
+      })
+
+      describe('cancelFineTune()', () => {
+        let scope
+
+        before(() => {
+          scope = nock('https://api.openai.com:443', {"encodedQueryParams":true})
+            .post('/v1/fine-tunes/ft-TVpNqwlvermMegfRVqSOyPyS/cancel')
+            .reply(200, {
+              "object":"fine-tune",
+              "id":"ft-TVpNqwlvermMegfRVqSOyPyS",
+              "hyperparams":{
+                "n_epochs":4,
+                "batch_size":3,
+                "prompt_loss_weight":0.01,
+                "learning_rate_multiplier":0.1
+              },
+              "organization_id":"org-COOLORG",
+              "model":"curie",
+              "training_files":[{
+                "object":"file",
+                "id":"file-t3k1gVSQDHrfZnPckzftlZ4A",
+                "purpose":"fine-tune",
+                "filename":"dave-hal.jsonl",
+                "bytes":356,
+                "created_at":1684365950,
+                "status":"processed",
+                "status_details":null
+              }],
+              "validation_files":[],
+              "result_files":[],
+              "created_at":1684452102,
+              "updated_at":1684452103,
+              "status":"cancelled",
+              "fine_tuned_model":null,
+              "events":[
+                {"object":"fine-tune-event","level":"info","message":"Created fine-tune: ft-TVpNqwlvermMegfRVqSOyPyS","created_at":1684452102},
+                {"object":"fine-tune-event","level":"info","message":"Fine-tune cancelled","created_at":1684452103}
+              ]}, [
+                'Date', 'Thu, 18 May 2023 23:21:43 GMT',
+                'Content-Type', 'application/json',
+                'Content-Length', '1042',
+                'Connection', 'close',
+                'openai-version', '2020-10-01',
+                'openai-processing-ms', '78',
+              ])
+        })
+
+        after(() => {
+          nock.removeInterceptor(scope)
+          scope.done()
+        })
+
+        it('makes a successful call', async () => {
+          const checkTraces = agent
+            .use(traces => {
+              expect(traces[0][0]).to.have.property('name', 'openai.request')
+              expect(traces[0][0]).to.have.property('type', 'openai')
+              expect(traces[0][0]).to.have.property('resource', 'cancelFineTune')
+              expect(traces[0][0]).to.have.property('error', 0)
+              expect(traces[0][0].meta).to.have.property('openai.organization.id', 'org-COOLORG')
+
+              expect(traces[0][0].meta).to.have.property('openai.request.method', 'POST')
+              expect(traces[0][0].meta).to.have.property('openai.request.endpoint', '/v1/fine-tunes/ft-TVpNqwlvermMegfRVqSOyPyS/cancel')
+
+              expect(traces[0][0].meta).to.have.property('openai.response.model', 'curie')
+              expect(traces[0][0].meta).to.have.property('openai.response.status', 'cancelled')
+              expect(traces[0][0].metrics).to.have.property('openai.response.created_at', 1684452102)
+              expect(traces[0][0].metrics).to.have.property('openai.response.events_count', 2)
+              expect(traces[0][0].metrics).to.have.property('openai.response.hyperparams.n_epochs', 4)
+              expect(traces[0][0].metrics).to.have.property('openai.response.hyperparams.batch_size', 3)
+              expect(traces[0][0].metrics).to.have.property('openai.response.hyperparams.prompt_loss_weight', 0.01)
+              expect(traces[0][0].metrics).to.have.property('openai.response.hyperparams.learning_rate_multiplier', 0.1)
+              expect(traces[0][0].metrics).to.have.property('openai.response.training_files_count', 1)
+              expect(traces[0][0].metrics).to.have.property('openai.response.result_files_count', 0)
+              expect(traces[0][0].metrics).to.have.property('openai.response.validation_files_count', 0)
+              expect(traces[0][0].metrics).to.have.property('openai.response.updated_at', 1684452103)
+            })
+
+          const result = await openai.cancelFineTune('ft-TVpNqwlvermMegfRVqSOyPyS')
+
+          expect(result.data.id).to.eql('ft-TVpNqwlvermMegfRVqSOyPyS')
 
           await checkTraces
         })

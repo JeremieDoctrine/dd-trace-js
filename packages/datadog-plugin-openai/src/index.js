@@ -112,6 +112,12 @@ class OpenApiPlugin extends TracingPlugin {
       }
     }
 
+    switch (methodName) {
+      case 'createFineTune':
+        createFineTuneRequestExtraction(tags, body)
+        break
+    }
+
     span.addTags(tags)
   }
 
@@ -126,10 +132,13 @@ class OpenApiPlugin extends TracingPlugin {
       'openai.request.endpoint': path, // TODO: Should this be /v1/foo or /foo?
       'openai.request.method': method,
 
+      'openai.organization.id': body.organization_id, // only available in fine-tunes endpoints
       'openai.organization.name': headers['openai-organization'],
-      'openai.response.model': headers['openai-model'] || body.model, // often undefined
 
-      'openai.response.create': body.created // common creation value, numeric epoch
+      'openai.response.model': headers['openai-model'] || body.model, // often undefined
+      'openai.response.create': body.created, // common creation value, numeric epoch
+      'openai.response.id': body.id, // common creation value, numeric epoch
+      'openai.response.deleted': body.deleted // common field in delete responses
     }
 
 
@@ -144,26 +153,40 @@ class OpenApiPlugin extends TracingPlugin {
       case "createModeration":
         createModerationExtraction(tags, body)
         break
+
       case "createCompletion":
       case "createChatCompletion":
       case "createEdit":
         commonCreateExtraction(tags, body)
         break
+
       case 'listFiles':
-        listFilesExtraction(tags, body)
+      case 'listFineTunes':
+      case 'listFineTuneEvents':
+        commonListCountExtraction(tags, body)
         break
+
       case 'createEmbedding':
         createEmbeddingExtraction(tags, body)
         break
+
       case 'createFile':
       case 'retrieveFile':
         createRetrieveFileExtraction(tags, body)
         break
+
       case 'deleteFile':
         deleteFileExtraction(tags, body)
         break
+
       case 'downloadFile':
         downloadFileExtraction(tags, body)
+        break
+
+      case 'createFineTune':
+      case 'retrieveFineTune':
+      case 'cancelFineTune':
+        commonFineTuneResponseExtraction(tags, body)
         break
     }
 
@@ -173,6 +196,39 @@ class OpenApiPlugin extends TracingPlugin {
   }
 }
 
+// TODO: All of these .request. metrics should really come from the request not the response,
+// otherwise we're going to lose that information from calls that error.
+
+function createFineTuneRequestExtraction(tags, body) {
+  tags['openai.request.training_file'] = body.training_file
+  tags['openai.request.validation_file'] = body.validation_file
+  tags['openai.request.n_epochs'] = body.n_epochs
+  tags['openai.request.batch_size'] = body.batch_size
+  tags['openai.request.learning_rate_multiplier'] = body.learning_rate_multiplier
+  tags['openai.request.prompt_loss_weight'] = body.prompt_loss_weight
+  tags['openai.request.compute_classification_metrics'] = body.compute_classification_metrics
+  tags['openai.request.classification_n_classes'] = body.classification_n_classes
+  tags['openai.request.classification_positive_class'] = body.classification_positive_class
+  // tags['openai.request.classification_betas'] = body.classification_betas // this is an array of... something.
+  // tags['openai.request.suffix'] = body.suffix // redundant
+  // tags['openai.request.model'] = body.model // redundant
+}
+
+function commonFineTuneResponseExtraction(tags, body) {
+  tags['openai.response.created_at'] = body.created_at
+  tags['openai.response.events_count'] = body.events.length
+  tags['openai.response.fine_tuned_model'] = body.fine_tuned_model
+  tags['openai.response.hyperparams.n_epochs'] = body.hyperparams.n_epochs
+  tags['openai.response.hyperparams.batch_size'] = body.hyperparams.batch_size
+  tags['openai.response.hyperparams.prompt_loss_weight'] = body.hyperparams.prompt_loss_weight
+  tags['openai.response.hyperparams.learning_rate_multiplier'] = body.hyperparams.learning_rate_multiplier
+  tags['openai.response.training_files_count'] = body.training_files.length
+  tags['openai.response.result_files_count'] = body.result_files.length
+  tags['openai.response.validation_files_count'] = body.validation_files.length
+  tags['openai.response.updated_at'] = body.updated_at
+  tags['openai.response.status'] = body.status
+}
+
 // the OpenAI package appears to stream the content download then provide it all as a singular string
 function downloadFileExtraction(tags, body) {
   tags['openai.response.total_bytes'] = body.file.length
@@ -180,7 +236,6 @@ function downloadFileExtraction(tags, body) {
 
 function deleteFileExtraction(tags, body) {
   tags['openai.response.id'] = body.id
-  tags['openai.response.deleted'] = body.deleted
 }
 
 function createRetrieveFileExtraction(tags, body) {
@@ -198,7 +253,7 @@ function createEmbeddingExtraction(tags, body) {
   // TODO: send every single embedding value via embeddings.<i>.embedding-length ?
 }
 
-function listFilesExtraction(tags, body) {
+function commonListCountExtraction(tags, body) {
   tags['openai.response.count'] = body.data.length
 }
 
