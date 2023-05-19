@@ -188,6 +188,10 @@ class OpenApiPlugin extends TracingPlugin {
       case 'cancelFineTune':
         commonFineTuneResponseExtraction(tags, body)
         break
+
+      case 'createTranscription':
+      case 'createTranslation':
+        createAudioExtraction(tags, body)
     }
 
     span.addTags(tags)
@@ -198,6 +202,13 @@ class OpenApiPlugin extends TracingPlugin {
 
 // TODO: All of these .request. metrics should really come from the request not the response,
 // otherwise we're going to lose that information from calls that error.
+
+function createAudioExtraction(tags, body) {
+  tags['openai.response.text'] = body.text
+  tags['openai.response.language'] = body.language
+  tags['openai.response.duration'] = body.duration
+  tags['openai.response.segments_count'] = body.segments.length
+}
 
 function createFineTuneRequestExtraction(tags, body) {
   tags['openai.request.training_file'] = body.training_file
@@ -357,6 +368,8 @@ function coerceRequestBody(arg, methodName) {
 function coerceResponseBody(body, methodName) {
   if (methodName === 'downloadFile') {
     return { file: body }
+  } else if (methodName === 'createTranscription' || methodName === 'createTranslation') {
+    return { text: body }
   }
 
   return {}

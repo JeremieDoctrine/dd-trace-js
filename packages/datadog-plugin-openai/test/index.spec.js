@@ -5,6 +5,7 @@ const semver = require('semver')
 const agent = require('../../dd-trace/test/plugins/agent')
 const nock = require('nock')
 const fs = require('fs')
+const { createTransaction } = require('../../dd-trace/src/appsec/iast/taint-tracking')
 
 describe('Plugin', () => {
   let openai
@@ -1501,6 +1502,140 @@ describe('Plugin', () => {
             expect(result.data.choices[0].message.role).to.eql('assistant')
             expect(result.data.choices[0].message.content).to.eql('In that case, it\'s best to avoid peanut')
             expect(result.data.choices[0].finish_reason).to.eql('length')
+
+            await checkTraces
+          })
+        })
+
+        describe('createTranscription()', () => {
+          let scope
+
+          before(() => {
+            scope = nock('https://api.openai.com:443', {"encodedQueryParams":true})
+              .post('/v1/audio/transcriptions', /.*/)
+              .reply(200, {
+                "task":"transcribe",
+                "language":"english",
+                "duration":2.19,
+                "segments":[{
+                  "id":0,
+                  "seek":0,
+                  "start":0,
+                  "end":2,
+                  "text":" Hello, friend.",
+                  "tokens":[50364,2425,11,1277,13,50464],
+                  "temperature":0.5,
+                  "avg_logprob":-0.7777707236153739,
+                  "compression_ratio":0.6363636363636364,
+                  "no_speech_prob":0.043891049921512604,
+                  "transient":false}],
+                  "text":"Hello, friend."
+                }, [
+                  'Date', 'Fri, 19 May 2023 03:19:49 GMT',
+                  'Content-Type', 'text/plain; charset=utf-8',
+                  'Content-Length', '15',
+                  'Connection', 'close',
+                  'openai-organization', 'kill-9',
+                  'openai-processing-ms', '595',
+                  'openai-version', '2020-10-01',
+                ]
+              )
+          })
+
+          after(() => {
+            nock.removeInterceptor(scope)
+            scope.done()
+          })
+
+          it('makes a successful call', async () => {
+            const checkTraces = agent
+              .use(traces => {
+                expect(traces[0][0]).to.have.property('name', 'openai.request')
+                expect(traces[0][0]).to.have.property('type', 'openai')
+                expect(traces[0][0]).to.have.property('resource', 'createTranscription')
+                expect(traces[0][0]).to.have.property('error', 0)
+                expect(traces[0][0].meta).to.have.property('openai.organization.name', 'kill-9')
+
+                expect(traces[0][0].meta).to.have.property('openai.request.method', 'POST')
+                expect(traces[0][0].meta).to.have.property('openai.request.endpoint', '/v1/audio/transcriptions')
+
+                expect(traces[0][0].meta).to.have.property('openai.response.text', 'Hello, friend.')
+                expect(traces[0][0].meta).to.have.property('openai.response.language', 'english')
+                expect(traces[0][0].metrics).to.have.property('openai.response.duration', 2.19)
+                expect(traces[0][0].metrics).to.have.property('openai.response.segments_count', 1)
+              })
+
+            // TODO: Should test each of 'json, text, srt, verbose_json, vtt' since response formats differ
+            const result = await openai.createTranscription(fs.createReadStream(__dirname + '/hello-friend.m4a'), 'whisper-1', undefined, 'verbose_json', 0.5, 'en')
+
+            expect(result.data.text).to.eql('Hello, friend.')
+
+            await checkTraces
+          })
+        })
+
+        describe('createTranslation()', () => {
+          let scope
+
+          before(() => {
+            scope = nock('https://api.openai.com:443', {"encodedQueryParams":true})
+            .post('/v1/audio/translations', /.*/)
+            .reply(200, {
+              "task":"translate",
+              "language":"english",
+              "duration":1.74,
+              "segments":[{
+                "id":0,
+                "seek":0,
+                "start":0,
+                "end":3,
+                "text":" Guten Tag!",
+                "tokens":[50364,42833,11204,0,50514],
+                "temperature":0.5,
+                "avg_logprob":-0.5626437266667684,
+                "compression_ratio":0.5555555555555556,
+                "no_speech_prob":0.01843200996518135,
+                "transient":false
+              }],
+                "text":"Guten Tag!"
+              }, [
+                'Date', 'Fri, 19 May 2023 03:41:25 GMT',
+                'Content-Type', 'application/json',
+                'Content-Length', '334',
+                'Connection', 'close',
+                'openai-organization', 'kill-9',
+                'openai-processing-ms', '520',
+                'openai-version', '2020-10-01',
+              ])
+          })
+
+          after(() => {
+            nock.removeInterceptor(scope)
+            scope.done()
+          })
+
+          it('makes a successful call', async () => {
+            const checkTraces = agent
+              .use(traces => {
+                expect(traces[0][0]).to.have.property('name', 'openai.request')
+                expect(traces[0][0]).to.have.property('type', 'openai')
+                expect(traces[0][0]).to.have.property('resource', 'createTranslation')
+                expect(traces[0][0]).to.have.property('error', 0)
+                expect(traces[0][0].meta).to.have.property('openai.organization.name', 'kill-9')
+
+                expect(traces[0][0].meta).to.have.property('openai.request.method', 'POST')
+                expect(traces[0][0].meta).to.have.property('openai.request.endpoint', '/v1/audio/translations')
+
+                expect(traces[0][0].meta).to.have.property('openai.response.text', 'Guten Tag!')
+                expect(traces[0][0].meta).to.have.property('openai.response.language', 'english')
+                expect(traces[0][0].metrics).to.have.property('openai.response.duration', 1.74)
+                expect(traces[0][0].metrics).to.have.property('openai.response.segments_count', 1)
+              })
+
+            // TODO: Should test each of 'json, text, srt, verbose_json, vtt' since response formats differ
+            const result = await openai.createTranslation(fs.createReadStream(__dirname + '/guten-tag.m4a'), 'whisper-1', 'greeting', 'verbose_json', 0.5)
+
+            expect(result.data.text).to.eql('Guten Tag!')
 
             await checkTraces
           })
