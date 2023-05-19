@@ -3,7 +3,7 @@
 const TaintedUtils = require('@datadog/native-iast-taint-tracking')
 const { IAST_TRANSACTION_ID } = require('../iast-context')
 const iastLog = require('../iast-log')
-const telemetry = require('../../telemetry')
+const appsecTelemetry = require('../../telemetry')
 const { REQUEST_TAINTED } = require('../iast-metric')
 const { isDebugAllowed, isInfoAllowed } = require('../../telemetry/verbosity')
 const { TaintTracking, TaintTrackingDebug, TaintTrackingDummy } = require('./taint-tracking-impl')
@@ -17,7 +17,7 @@ function createTransaction (id, iastContext) {
 let onRemoveTransaction = (transactionId, iastContext) => {}
 
 function onRemoveTransactionInformationTelemetry (transactionId, iastContext) {
-  const metrics = TaintedUtils.getMetrics(transactionId, telemetry.verbosity)
+  const metrics = TaintedUtils.getMetrics(transactionId, appsecTelemetry.verbosity)
   if (metrics && metrics.requestCount) {
     REQUEST_TAINTED.add(metrics.requestCount, null, iastContext)
   }
@@ -106,6 +106,7 @@ function enableTaintOperations (telemetryVerbosity) {
   if (isInfoAllowed(telemetryVerbosity)) {
     onRemoveTransaction = onRemoveTransactionInformationTelemetry
   }
+
   global._ddiast = isDebugAllowed(telemetryVerbosity)
     ? TaintTrackingDebug
     : TaintTracking

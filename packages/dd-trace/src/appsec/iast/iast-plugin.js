@@ -4,7 +4,7 @@ const { channel } = require('../../../../diagnostics_channel')
 
 const log = require('../../log')
 const Plugin = require('../../plugins/plugin')
-const telemetry = require('../telemetry')
+const appsecTelemetry = require('../telemetry')
 const { getInstrumentedMetric, getExecutedMetric, MetricTag } = require('./iast-metric')
 const { storage } = require('../../../../datadog-core')
 const { getIastContext } = require('./iast-context')
@@ -70,11 +70,11 @@ class IastPlugin extends Plugin {
     if (typeof iastSub === 'string') {
       super.addSub(iastSub, this._wrapHandler(handler))
     } else {
-      iastSub = this.getAndRegisterSubscription(iastSub)
+      iastSub = this._getAndRegisterSubscription(iastSub)
       if (iastSub) {
         super.addSub(iastSub.channelName, this._wrapHandler(handler))
 
-        if (telemetry.isEnabled()) {
+        if (appsecTelemetry.isEnabled()) {
           super.addSub(iastSub.channelName, this._getTelemetryHandler(iastSub))
         }
       }
@@ -89,7 +89,7 @@ class IastPlugin extends Plugin {
       this.configured = true
     }
 
-    if (telemetry.isEnabled()) {
+    if (appsecTelemetry.isEnabled()) {
       if (config) {
         this.enableTelemetry()
       } else {
@@ -100,7 +100,7 @@ class IastPlugin extends Plugin {
     super.configure(config)
   }
 
-  getAndRegisterSubscription ({ moduleName, channelName, tag, metricTag }) {
+  _getAndRegisterSubscription ({ moduleName, channelName, tag, metricTag }) {
     if (!channelName) return
 
     if (!moduleName) {
@@ -112,6 +112,7 @@ class IastPlugin extends Plugin {
         moduleName = channelName.substring(firstSep + 1, lastSep !== -1 ? lastSep : channelName.length)
       }
     }
+
     const iastSub = new IastPluginSubscription(moduleName, channelName, tag, metricTag)
     this.pluginSubs.push(iastSub)
     return iastSub
@@ -120,13 +121,13 @@ class IastPlugin extends Plugin {
   enableTelemetry () {
     if (this.onInstrumentationLoadedListener) return
 
-    this.onInstrumentationLoadedListener = ({ name }) => this.onInstrumentationLoaded(name)
+    this.onInstrumentationLoadedListener = ({ name }) => this._onInstrumentationLoaded(name)
     const loadChannel = channel('dd-trace:instrumentation:load')
     loadChannel.subscribe(this.onInstrumentationLoadedListener)
 
     // check for already instrumented modules
     for (const name in instrumentations) {
-      this.onInstrumentationLoaded(name)
+      this._onInstrumentationLoaded(name)
     }
   }
 
@@ -140,7 +141,7 @@ class IastPlugin extends Plugin {
     this.onInstrumentationLoadedListener = null
   }
 
-  onInstrumentationLoaded (name) {
+  _onInstrumentationLoaded (name) {
     this.pluginSubs
       .filter(sub => sub.moduleName.includes(name))
       .forEach(sub => sub.increaseInstrumented())

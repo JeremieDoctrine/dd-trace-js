@@ -5,7 +5,7 @@ const proxyquire = require('proxyquire')
 const { INSTRUMENTED_PROPAGATION, INSTRUMENTED_SOURCE,
   REQUEST_TAINTED } = require('../../../src/appsec/iast/iast-metric')
 const { addValue, getMetricCollector, init, getFromContext, drain
-  , DD_TELEMETRY_COLLECTOR, GLOBAL
+  , DD_TELEMETRY_COLLECTOR, globalTelemetryCollector
   , TelemetryCollector } =
   require('../../../src/appsec/telemetry/telemetry-collector')
 
@@ -285,37 +285,37 @@ describe('IAST TelemetryCollector', () => {
       expect(reqMetricCollector).to.be.eq(collector)
     })
 
-    // TODO: at the moment, if no context is provided for a request scoped metric GLOBAL collector is returned
-    it('should return GLOBAL collector for a request metric if not context is provided?', () => {
+    // TODO: at the moment, if no context is provided the globalTelemetryCollector collector is returned
+    it('should return globalTelemetryCollector collector for a request metric if not context is provided?', () => {
       const context = {}
       init(context)
 
       const reqMetricCollector = getMetricCollector(REQUEST_TAINTED)
 
-      expect(reqMetricCollector).to.be.eq(GLOBAL)
+      expect(reqMetricCollector).to.be.eq(globalTelemetryCollector)
     })
 
-    it('should return GLOBAL collector for a global metric', () => {
+    it('should return globalTelemetryCollector collector for a globalTelemetryCollector metric', () => {
       const context = {}
       const collector = init(context)
 
-      const globalMetricCollector = getMetricCollector(INSTRUMENTED_PROPAGATION, context)
+      const globalTelemetryCollectorMetricCollector = getMetricCollector(INSTRUMENTED_PROPAGATION, context)
 
-      expect(globalMetricCollector).to.be.eq(GLOBAL)
-      expect(globalMetricCollector).to.be.not.eq(collector)
+      expect(globalTelemetryCollectorMetricCollector).to.be.eq(globalTelemetryCollector)
+      expect(globalTelemetryCollectorMetricCollector).to.be.not.eq(collector)
     })
   })
 
   describe('drain', () => {
-    it('should drain GLOBAL metrics', () => {
-      GLOBAL.addMetric(INSTRUMENTED_SOURCE, 5, 'http.request.param')
-      GLOBAL.addMetric(INSTRUMENTED_SOURCE, 5, 'http.request.param')
+    it('should drain globalTelemetryCollector metrics', () => {
+      globalTelemetryCollector.addMetric(INSTRUMENTED_SOURCE, 5, 'http.request.param')
+      globalTelemetryCollector.addMetric(INSTRUMENTED_SOURCE, 5, 'http.request.param')
 
       // same metric with different tag
-      GLOBAL.addMetric(INSTRUMENTED_SOURCE, 1, 'http.request.body')
+      globalTelemetryCollector.addMetric(INSTRUMENTED_SOURCE, 1, 'http.request.body')
 
-      GLOBAL.addMetric(REQUEST_TAINTED, 15)
-      GLOBAL.addMetric(REQUEST_TAINTED, 20)
+      globalTelemetryCollector.addMetric(REQUEST_TAINTED, 15)
+      globalTelemetryCollector.addMetric(REQUEST_TAINTED, 20)
 
       const drained = drain()
       expect(drained.length).to.be.eq(3)

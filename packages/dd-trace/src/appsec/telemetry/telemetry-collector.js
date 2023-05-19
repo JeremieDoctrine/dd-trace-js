@@ -48,7 +48,7 @@ class TelemetryCollector {
   }
 }
 
-const GLOBAL = new TelemetryCollector(metric => metric.hasRequestScope()
+const globalTelemetryCollector = new TelemetryCollector(metric => metric.hasRequestScope()
   ? aggregated(metric)
   : conflated(metric)
 )
@@ -60,7 +60,7 @@ function getMetricCollector (metric, context) {
       return telemetryCollector
     }
   }
-  return GLOBAL
+  return globalTelemetryCollector
 }
 
 function init (context) {
@@ -68,7 +68,7 @@ function init (context) {
 
   const collector = new TelemetryCollector((metric) => metric.hasRequestScope()
     ? conflated(metric)
-    : delegating(metric, GLOBAL)
+    : delegating(metric, globalTelemetryCollector)
   )
   context[DD_TELEMETRY_COLLECTOR] = collector
   return collector
@@ -95,7 +95,7 @@ function addValue (metric, value, tag, context) {
 
 function drain () {
   const drained = []
-  for (const metricData of GLOBAL.drainMetrics()) {
+  for (const metricData of globalTelemetryCollector.drainMetrics()) {
     if (metricData.metric && metricData.points) {
       drained.push(metricData.getPayload())
     }
@@ -112,6 +112,6 @@ module.exports = {
 
   TelemetryCollector,
 
-  GLOBAL,
+  globalTelemetryCollector,
   DD_TELEMETRY_COLLECTOR
 }

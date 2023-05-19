@@ -6,15 +6,15 @@ const { INSTRUMENTED_PROPAGATION } = require('../../../../src/appsec/iast/iast-m
 const { Verbosity } = require('../../../../src/appsec/telemetry/verbosity')
 
 describe('rewriter telemetry', () => {
-  let telemetry, rewriter, getRewriteFunction
+  let appsecTelemetry, rewriter, getRewriteFunction
   let instrumentedPropagationAdd
 
   beforeEach(() => {
-    telemetry = {
+    appsecTelemetry = {
       add: sinon.spy()
     }
     const rewriterTelemetry = proxyquire('../../../../src/appsec/iast/taint-tracking/rewriter-telemetry', {
-      '../../telemetry': telemetry
+      '../../telemetry': appsecTelemetry
     })
     getRewriteFunction = rewriterTelemetry.getRewriteFunction
     rewriter = {
@@ -33,7 +33,7 @@ describe('rewriter telemetry', () => {
   afterEach(sinon.restore)
 
   it('should not increase any metrics with OFF verbosity', () => {
-    telemetry.verbosity = Verbosity.OFF
+    appsecTelemetry.verbosity = Verbosity.OFF
 
     const rewriteFn = getRewriteFunction(rewriter)
     rewriteFn('const a = b + c', 'test.js')
@@ -42,7 +42,7 @@ describe('rewriter telemetry', () => {
   })
 
   it('should increase information metrics with MANDATORY verbosity', () => {
-    telemetry.verbosity = Verbosity.MANDATORY
+    appsecTelemetry.verbosity = Verbosity.MANDATORY
 
     const rewriteFn = getRewriteFunction(rewriter)
     const result = rewriteFn('const a = b + c', 'test.js')
@@ -51,7 +51,7 @@ describe('rewriter telemetry', () => {
   })
 
   it('should increase information metrics with INFORMATION verbosity', () => {
-    telemetry.verbosity = Verbosity.INFORMATION
+    appsecTelemetry.verbosity = Verbosity.INFORMATION
 
     const rewriteFn = getRewriteFunction(rewriter)
     const result = rewriteFn('const a = b + c', 'test.js')
@@ -60,7 +60,7 @@ describe('rewriter telemetry', () => {
   })
 
   it('should increase debug metrics with DEBUG verbosity', () => {
-    telemetry.verbosity = Verbosity.DEBUG
+    appsecTelemetry.verbosity = Verbosity.DEBUG
 
     const rewriteFn = getRewriteFunction(rewriter)
     const result = rewriteFn('const a = b + c', 'test.js')

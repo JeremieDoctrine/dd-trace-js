@@ -31,7 +31,7 @@ describe('IAST Plugin', () => {
     sinon.restore()
   })
 
-  describe('with telemetry disabled', () => {
+  describe('with appsec telemetry disabled', () => {
     let IastPlugin
 
     beforeEach(() => {
@@ -150,8 +150,8 @@ describe('IAST Plugin', () => {
     })
   })
 
-  describe('with telemetry enabled', () => {
-    let telemetry
+  describe('with appsec telemetry enabled', () => {
+    let appsecTelemetry
     let IastPlugin
 
     beforeEach(() => {
@@ -163,7 +163,7 @@ describe('IAST Plugin', () => {
           configureMock(config)
         }
       }
-      telemetry = {
+      appsecTelemetry = {
         isEnabled: () => true,
         isDebugEnabled: () => true
       }
@@ -172,7 +172,7 @@ describe('IAST Plugin', () => {
         '../../log': {
           error: logError
         },
-        '../telemetry': telemetry,
+        '../telemetry': appsecTelemetry,
         '../../../../datadog-instrumentations/src/helpers/instrumentations': {}
       }).IastPlugin
 
@@ -186,7 +186,7 @@ describe('IAST Plugin', () => {
 
     describe('configure', () => {
       it('should subscribe dd-trace:instrumentation:load channel', () => {
-        const onInstrumentationLoadedMock = sinon.stub(iastPlugin, 'onInstrumentationLoaded')
+        const onInstrumentationLoadedMock = sinon.stub(iastPlugin, '_onInstrumentationLoaded')
         iastPlugin.configure(true)
         iastPlugin.configure(false)
         iastPlugin.configure(true)

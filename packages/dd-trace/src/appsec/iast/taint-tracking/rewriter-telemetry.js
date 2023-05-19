@@ -1,6 +1,6 @@
 'use strict'
 
-const telemetry = require('../../telemetry')
+const appsecTelemetry = require('../../telemetry')
 const { Verbosity } = require('../../telemetry/verbosity')
 const { INSTRUMENTED_PROPAGATION } = require('../iast-metric')
 
@@ -22,7 +22,7 @@ const telemetryRewriter = {
 }
 
 function getRewriteFunction (rewriter) {
-  switch (telemetry.verbosity) {
+  switch (appsecTelemetry.verbosity) {
     case Verbosity.OFF:
       return (content, filename) => telemetryRewriter.off(content, filename, rewriter)
     default:

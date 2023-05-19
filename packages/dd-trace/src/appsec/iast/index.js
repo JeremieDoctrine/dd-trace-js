@@ -6,7 +6,7 @@ const overheadController = require('./overhead-controller')
 const dc = require('../../../../diagnostics_channel')
 const iastContextFunctions = require('./iast-context')
 const { enableTaintTracking, disableTaintTracking, createTransaction, removeTransaction } = require('./taint-tracking')
-const telemetry = require('../telemetry')
+const appsecTelemetry = require('../telemetry')
 
 const IAST_ENABLED_TAG_KEY = '_dd.iast.enabled'
 const IAST_TRACE_METRIC_PREFIX = '_dd.iast.telemetry'
@@ -17,9 +17,9 @@ const requestStart = dc.channel('dd-trace:incomingHttpRequestStart')
 const requestClose = dc.channel('dd-trace:incomingHttpRequestEnd')
 
 function enable (config, _tracer) {
-  telemetry.configure(config)
+  appsecTelemetry.configure(config)
   enableAllAnalyzers()
-  enableTaintTracking(config.iast, telemetry.verbosity)
+  enableTaintTracking(config.iast, appsecTelemetry.verbosity)
   requestStart.subscribe(onIncomingHttpRequestStart)
   requestClose.subscribe(onIncomingHttpRequestEnd)
   overheadController.configure(config.iast)
@@ -28,7 +28,7 @@ function enable (config, _tracer) {
 }
 
 function disable () {
-  telemetry.stop()
+  appsecTelemetry.stop()
   disableAllAnalyzers()
   disableTaintTracking()
   overheadController.finishGlobalContext()
@@ -49,7 +49,7 @@ function onIncomingHttpRequestStart (data) {
           const iastContext = iastContextFunctions.saveIastContext(store, topContext, { rootSpan, req: data.req })
           createTransaction(rootSpan.context().toSpanId(), iastContext)
           overheadController.initializeRequestContext(iastContext)
-          telemetry.onRequestStarted(iastContext)
+          appsecTelemetry.onRequestStarted(iastContext)
         }
         if (rootSpan.addTags) {
           rootSpan.addTags({
@@ -71,7 +71,7 @@ function onIncomingHttpRequestEnd (data) {
       const rootSpan = iastContext.rootSpan
       vulnerabilityReporter.sendVulnerabilities(vulnerabilities, rootSpan)
       removeTransaction(iastContext)
-      telemetry.onRequestEnded(iastContext, iastContext.rootSpan, IAST_TRACE_METRIC_PREFIX)
+      appsecTelemetry.onRequestEnd(iastContext, iastContext.rootSpan, IAST_TRACE_METRIC_PREFIX)
     }
     // TODO web.getContext(data.req) is required when the request is aborted
     if (iastContextFunctions.cleanIastContext(store, topContext, iastContext)) {

@@ -39,16 +39,8 @@ const EXECUTED_PROPAGATION =
   new Metric('executed.propagation', Scope.REQUEST, null, IAST_NAMESPACE)
 const EXECUTED_TAINTED = new Metric('executed.tainted', Scope.REQUEST, null, IAST_NAMESPACE)
 
-// DEBUG using log endpoint
-// const SOURCE_DEBUG = new Metric('source.debug', Scope.GLOBAL, null, IAST_NAMESPACE)
-// const PROPAGATION_DEBUG = new Metric('propagation.debug', Scope.GLOBAL, null, IAST_NAMESPACE)
-// const SINK_DEBUG = new Metric('sink.debug', Scope.GLOBAL, null, IAST_NAMESPACE)
-// const TAINTED_DEBUG = new Metric('tainted.debug', Scope.GLOBAL, null, IAST_NAMESPACE)
-// const TAINTED_SINK_DEBUG = new Metric('tainted.sink.debug', Scope.GLOBAL, null, IAST_NAMESPACE)
-
 // DEBUG using distribution endpoint
 const INSTRUMENTATION_TIME = new Metric('instrumentation.time', Scope.GLOBAL, null, IAST_NAMESPACE)
-// const EXECUTION_TIME = new Metric('execution.time', Scope.GLOBAL, null, IAST_NAMESPACE)
 
 module.exports = {
   INSTRUMENTED_PROPAGATION,

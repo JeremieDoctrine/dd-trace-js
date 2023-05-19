@@ -7,7 +7,7 @@ const {
   drain: drainMetrics,
   init: initTelemetryCollector,
   getFromContext,
-  GLOBAL
+  globalTelemetryCollector
 } = require('./telemetry-collector')
 const {
   init: initLogCollector,
@@ -63,7 +63,7 @@ class Telemetry {
     }
   }
 
-  onRequestEnded (context, rootSpan, tagPrefix) {
+  onRequestEnd (context, rootSpan, tagPrefix) {
     if (!this.isEnabled()) return
 
     try {
@@ -72,7 +72,7 @@ class Telemetry {
 
       const metrics = collector.drainMetrics()
       addMetricsToSpan(rootSpan, metrics, tagPrefix || TRACE_METRIC_PATTERN)
-      GLOBAL.merge(metrics)
+      globalTelemetryCollector.merge(metrics)
     } catch (e) {
       log.error(e)
     }

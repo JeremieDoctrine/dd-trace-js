@@ -15,7 +15,7 @@ function getRewriter (telemetryVerbosity) {
     const iastRewriter = require('@datadog/native-iast-rewriter')
     const Rewriter = iastRewriter.Rewriter
     getPrepareStackTrace = iastRewriter.getPrepareStackTrace
-    rewriter = new Rewriter({ csiMethods, telemetryVerbosity: getName(telemetryVerbosity) })
+    rewriter = new Rewriter({ csiMethods, telemetryVerbosity: getName(telemetryVerbosity), chainSourceMap: true })
   }
   return rewriter
 }

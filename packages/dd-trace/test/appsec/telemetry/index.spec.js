@@ -12,7 +12,7 @@ describe('Telemetry', () => {
   let collector
   let telemetryMetrics
   let telemetryLogs
-  let telemetry
+  let appsecTelemetry
   let logCollector
 
   beforeEach(() => {
@@ -26,7 +26,7 @@ describe('Telemetry', () => {
     collector = {
       init: sinon.spy(),
       getFromContext: (context) => context['collector'],
-      GLOBAL: {
+      globalTelemetryCollector: {
         merge: sinon.spy()
       },
       addValue: sinon.spy(),
@@ -50,7 +50,7 @@ describe('Telemetry', () => {
     sinon.stub(logCollector, 'init')
     sinon.stub(logCollector, 'add')
 
-    telemetry = proxyquire('../../../src/appsec/telemetry', {
+    appsecTelemetry = proxyquire('../../../src/appsec/telemetry', {
       './telemetry-collector': collector,
       './api/metrics-plugin': telemetryMetrics,
       './api/logs-plugin': telemetryLogs,
@@ -64,26 +64,26 @@ describe('Telemetry', () => {
 
   describe('configure', () => {
     it('should set default verbosity', () => {
-      telemetry.configure(defaultConfig)
+      appsecTelemetry.configure(defaultConfig)
 
-      expect(telemetry.enabled).to.be.true
-      expect(telemetry.verbosity).to.be.eq(Verbosity.INFORMATION)
+      expect(appsecTelemetry.enabled).to.be.true
+      expect(appsecTelemetry.verbosity).to.be.eq(Verbosity.INFORMATION)
       expect(telemetryMetrics.init).to.be.calledOnceWith(defaultConfig.telemetry)
       expect(telemetryLogs.init).to.be.calledOnceWith(defaultConfig.telemetry)
     })
 
     it('should set OFF verbosity if not enabled', () => {
       defaultConfig.telemetry.enabled = false
-      telemetry.configure(defaultConfig)
+      appsecTelemetry.configure(defaultConfig)
 
-      expect(telemetry.enabled).to.be.false
-      expect(telemetry.verbosity).to.be.eq(Verbosity.OFF)
+      expect(appsecTelemetry.enabled).to.be.false
+      expect(appsecTelemetry.verbosity).to.be.eq(Verbosity.OFF)
       expect(telemetryMetrics.init).to.not.be.called
       expect(telemetryLogs.init).to.not.be.called
     })
 
     it('should init metrics even if verbosity is OFF', () => {
-      const telemetry = proxyquire('../../../src/appsec/telemetry', {
+      const appsecTelemetry = proxyquire('../../../src/appsec/telemetry', {
         './telemetry-collector': collector,
         './api/metrics-plugin': telemetryMetrics,
         './api/logs-plugin': telemetryLogs,
@@ -94,24 +94,24 @@ describe('Telemetry', () => {
       })
 
       const telemetryConfig = { enabled: true, metrics: true }
-      telemetry.configure({
+      appsecTelemetry.configure({
         telemetry: telemetryConfig
       })
 
-      expect(telemetry.enabled).to.be.true
-      expect(telemetry.verbosity).to.be.eq(Verbosity.OFF)
+      expect(appsecTelemetry.enabled).to.be.true
+      expect(appsecTelemetry.verbosity).to.be.eq(Verbosity.OFF)
       expect(telemetryMetrics.init).to.be.calledOnceWith(telemetryConfig)
       expect(telemetryLogs.init).to.be.calledOnceWith(telemetryConfig)
     })
 
     it('should not init metrics if metrics not enabled', () => {
       const telemetryConfig = { enabled: true, metrics: false }
-      telemetry.configure({
+      appsecTelemetry.configure({
         telemetry: telemetryConfig
       })
 
-      expect(telemetry.enabled).to.be.false
-      expect(telemetry.verbosity).to.be.eq(Verbosity.OFF)
+      expect(appsecTelemetry.enabled).to.be.false
+      expect(appsecTelemetry.verbosity).to.be.eq(Verbosity.OFF)
       expect(telemetryMetrics.init).to.not.be.called
       expect(telemetryLogs.init).to.not.be.called
     })
@@ -119,10 +119,10 @@ describe('Telemetry', () => {
 
   describe('stop', () => {
     it('should set enabled = false and unregister provider', () => {
-      telemetry.configure(defaultConfig)
+      appsecTelemetry.configure(defaultConfig)
 
-      telemetry.stop()
-      expect(telemetry.enabled).to.be.false
+      appsecTelemetry.stop()
+      expect(appsecTelemetry.enabled).to.be.false
       expect(telemetryMetrics.stop).to.be.calledOnce
       expect(telemetryLogs.stop).to.be.calledOnce
     })
@@ -130,16 +130,16 @@ describe('Telemetry', () => {
 
   describe('onRequestStarted', () => {
     it('should call init if enabled and verbosity is not Off', () => {
-      telemetry.configure(defaultConfig)
+      appsecTelemetry.configure(defaultConfig)
 
       const iastContext = {}
-      telemetry.onRequestStarted(iastContext)
+      appsecTelemetry.onRequestStarted(iastContext)
 
       expect(collector.init).to.be.calledOnceWith(iastContext)
     })
 
     it('should not call init if enabled and verbosity is Off', () => {
-      const telemetry = proxyquire('../../../src/appsec/telemetry', {
+      const appsecTelemetry = proxyquire('../../../src/appsec/telemetry', {
         './telemetry-collector': collector,
         './api/metrics-plugin': telemetryMetrics,
         './api/logs-plugin': telemetryLogs,
@@ -148,23 +148,23 @@ describe('Telemetry', () => {
           getVerbosity: () => Verbosity.OFF
         }
       })
-      telemetry.configure({
+      appsecTelemetry.configure({
         telemetry: { enabled: true }
       })
 
       const iastContext = {}
-      telemetry.onRequestStarted(iastContext)
+      appsecTelemetry.onRequestStarted(iastContext)
 
       expect(collector.init).to.not.be.calledOnce
     })
   })
 
-  describe('onRequestEnded', () => {
+  describe('onRequestEnd', () => {
     let iastContext
     let rootSpan
 
     beforeEach(() => {
-      telemetry.configure(defaultConfig)
+      appsecTelemetry.configure(defaultConfig)
 
       rootSpan = {
         addTags: sinon.spy()
@@ -183,7 +183,7 @@ describe('Telemetry', () => {
         }
       }
 
-      telemetry.onRequestEnded(iastContext, rootSpan, TAG_PREFIX)
+      appsecTelemetry.onRequestEnd(iastContext, rootSpan, TAG_PREFIX)
 
       expect(iastContext.collector.drainMetrics).to.be.calledOnce
       expect(rootSpan.addTags).to.be.called
@@ -213,7 +213,7 @@ describe('Telemetry', () => {
         }
       }
 
-      telemetry.onRequestEnded(iastContext, rootSpan, TAG_PREFIX)
+      appsecTelemetry.onRequestEnd(iastContext, rootSpan, TAG_PREFIX)
 
       expect(iastContext.collector.drainMetrics).to.be.calledOnce
       expect(rootSpan.addTags).to.be.calledTwice
@@ -228,7 +228,7 @@ describe('Telemetry', () => {
       expect(execSinkTag[`${TAG_PREFIX}.${EXECUTED_SINK.name}`]).to.be.eq(1)
     })
 
-    it('should set filter out global scoped metrics', () => {
+    it('should set filter out globalTelemetryCollector scoped metrics', () => {
       const metrics = [{
         metric: INSTRUMENTED_PROPAGATION,
         points: [{ value: 5 }, { value: 5 }]
@@ -240,13 +240,13 @@ describe('Telemetry', () => {
         }
       }
 
-      telemetry.onRequestEnded(iastContext, rootSpan)
+      appsecTelemetry.onRequestEnd(iastContext, rootSpan)
 
       expect(iastContext.collector.drainMetrics).to.be.calledOnce
       expect(rootSpan.addTags).to.not.be.called
     })
 
-    it('should merge all kind of metrics in GLOBAL collector', () => {
+    it('should merge all kind of metrics in globalTelemetryCollector collector', () => {
       const metrics = [{
         metric: REQUEST_TAINTED,
         points: [{ value: 5 }, { value: 5 }]
@@ -262,8 +262,8 @@ describe('Telemetry', () => {
         }
       }
 
-      telemetry.onRequestEnded(iastContext, rootSpan)
-      expect(collector.GLOBAL.merge).to.be.calledWith(metrics)
+      appsecTelemetry.onRequestEnd(iastContext, rootSpan)
+      expect(collector.globalTelemetryCollector.merge).to.be.calledWith(metrics)
     })
 
     it('should not fail with incomplete metrics', () => {
@@ -281,8 +281,8 @@ describe('Telemetry', () => {
         }
       }
 
-      telemetry.onRequestEnded(iastContext, rootSpan)
-      expect(collector.GLOBAL.merge).to.be.calledWith(metrics)
+      appsecTelemetry.onRequestEnd(iastContext, rootSpan)
+      expect(collector.globalTelemetryCollector.merge).to.be.calledWith(metrics)
     })
   })
 })

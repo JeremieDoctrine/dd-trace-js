@@ -4,7 +4,7 @@ const { expect } = require('chai')
 const proxyquire = require('proxyquire')
 const iastContextFunctions = require('../../../../src/appsec/iast/iast-context')
 const { getExpectedMethods } = require('../../../../src/appsec/iast/taint-tracking/csi-methods')
-const telemetry = require('../../../../src/appsec//telemetry')
+const appsecTelemetry = require('../../../../src/appsec//telemetry')
 const { EXECUTED_PROPAGATION, REQUEST_TAINTED } = require('../../../../src/appsec/iast/iast-metric')
 const { Verbosity } = require('../../../../src/appsec/telemetry/verbosity')
 
@@ -46,7 +46,7 @@ describe('IAST TaintTracking Operations', () => {
       '@datadog/native-iast-taint-tracking': taintedUtilsMock,
       '../../../../../datadog-core': datadogCore,
       './taint-tracking-impl': taintTrackingImpl,
-      '../telemetry': telemetry
+      '../telemetry': appsecTelemetry
     })
   })
 
@@ -220,7 +220,7 @@ describe('IAST TaintTracking Operations', () => {
       const iastContext = {
         [taintTrackingOperations.IAST_TRANSACTION_ID]: 'id'
       }
-      telemetry.configure({
+      appsecTelemetry.configure({
         telemetry: { enabled: true, metrics: true },
         iast: {
           telemetryVerbosity: 'INFORMATION'
@@ -229,7 +229,7 @@ describe('IAST TaintTracking Operations', () => {
 
       const requestTaintedAdd = sinon.stub(REQUEST_TAINTED, 'add')
 
-      taintTrackingOperations.enableTaintOperations(telemetry.verbosity)
+      taintTrackingOperations.enableTaintOperations(appsecTelemetry.verbosity)
       taintTrackingOperations.removeTransaction(iastContext)
 
       expect(requestTaintedAdd).to.be.calledOnceWith(5, null, iastContext)
