@@ -91,7 +91,8 @@ function getBlockWithContentData (req, specificType, rootSpan) {
 
   const headers = {
     'Content-Type': type,
-    'Content-Length': Buffer.byteLength(body)
+    'Content-Length': Buffer.byteLength(body),
+    'X-Datadog-AppSec-Blocked': '1'
   }
 
   rootSpan.addTags({
